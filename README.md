@@ -13,18 +13,20 @@
 
 ## 🚀 在线体验
 
-[点击体验在线版本](https://your-domain.com) （如果你已部署）
+[点击体验在线版本](https://mbti.qunqin.net) （如果你已部署）
 
 ## 📸 应用截图
 
 ### 首页
-![首页截图](public/screenshot-home.png)
+<img width="1380" height="764" alt="image" src="https://github.com/user-attachments/assets/36339887-5553-41bc-a1bc-e257036c4f8d" />
 
 ### AI测试流程
-![测试流程](public/screenshot-test.png)
+<img width="1380" height="762" alt="image" src="https://github.com/user-attachments/assets/7d66c9b0-b94e-47ec-bc26-010d41276101" />
+
+<img width="1380" height="762" alt="image" src="https://github.com/user-attachments/assets/5f44c9a0-06f4-4872-bd51-6ac4368d134e" />
 
 ### 结果分析
-![结果分析](public/screenshot-result.png)
+<img width="1380" height="768" alt="image" src="https://github.com/user-attachments/assets/948525d8-9a1a-47eb-9f23-a5fe49d2912a" />
 
 ## 🛠️ 技术栈
 

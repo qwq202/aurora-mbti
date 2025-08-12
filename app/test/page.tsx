@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { QUESTIONS, type Question, type Answers, computeMbti, getPersonalizedQuestions, type UserProfile } from "@/lib/mbti"
+import { QUESTIONS, type Question, type Answers, computeMbti, getPersonalizedQuestions, type UserProfile, convertAIQuestionsToMBTI } from "@/lib/mbti"
 import { SiteHeader } from "@/components/site-header"
 import { GradientBg } from "@/components/gradient-bg"
 import { MbtiQuestion, type LikertValue } from "@/components/mbti-question"
@@ -34,7 +34,7 @@ export default function TestPage() {
   // 加载个人资料和测试模式
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
-  const [testMode, setTestMode] = useState<string>("standard")
+  const [testMode, setTestMode] = useState("standard")
   
   useEffect(() => {
     try {
@@ -78,15 +78,32 @@ export default function TestPage() {
         const aiQuestions = localStorage.getItem("mbti_ai_questions_v1")
         if (aiQuestions) {
           const parsed = JSON.parse(aiQuestions)
-          console.log('AI题目调试信息:', {
+          console.log('AI题目原始数据:', {
             count: parsed.length,
-            firstFew: parsed.slice(0, 3).map((q: any) => ({ id: q.id, text: q.text?.substring(0, 30) })),
-            allIds: parsed.map((q: any) => q.id),
-            uniqueIds: [...new Set(parsed.map((q: any) => q.id))].length
+            firstFew: parsed.slice(0, 3).map((q: any) => ({ 
+              id: q.id, 
+              text: q.text?.substring(0, 30),
+              dimension: q.dimension,
+              agree: q.agree
+            }))
           })
-          return parsed
+          
+          // 转换AI题目为标准MBTI格式
+          const convertedQuestions = convertAIQuestionsToMBTI(parsed)
+          console.log('AI题目转换后:', {
+            count: convertedQuestions.length,
+            firstFew: convertedQuestions.slice(0, 3).map((q: Question) => ({ 
+              id: q.id, 
+              text: q.text?.substring(0, 30),
+              dimension: q.dimension,
+              agree: q.agree
+            }))
+          })
+          
+          return convertedQuestions
         }
-      } catch {
+      } catch (error) {
+        console.error('AI题目加载失败:', error)
         // 如果AI题目加载失败，回退到标准模式
         return getPersonalizedQuestions(profile)
       }

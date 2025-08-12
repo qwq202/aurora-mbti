@@ -3,6 +3,7 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 import { Toaster } from '@/components/ui/toaster'
+import { PageTransition } from '@/components/page-transition'
 
 export const metadata: Metadata = {
   title: 'Aurora MBTI',
@@ -32,7 +33,9 @@ html {
         `}</style>
       </head>
       <body>
-        {children}
+        <PageTransition>
+          {children}
+        </PageTransition>
         <Toaster />
       </body>
     </html>

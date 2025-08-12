@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { SiteHeader } from "@/components/site-header"
 import { GradientBg } from "@/components/gradient-bg"
 import { formatScoresForShare, type MbtiResult, typeDisplayInfo, type UserProfile } from "@/lib/mbti"
-import { ArrowLeft, Copy, Home, Share2, Sparkles, Star, Target, TrendingUp, Users } from "lucide-react"
+import { ArrowLeft, Copy, Home, Share2, Sparkles, Star, Target, TrendingUp, Users, Loader } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -109,7 +109,9 @@ export default function ResultPage() {
   const [testMode, setTestMode] = useState<string>("standard")
   const [aiAnalysis, setAiAnalysis] = useState<any>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [streamingAnalysis, setStreamingAnalysis] = useState<string>('')
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false)
   const isAiMode = useMemo(() => testMode?.startsWith("ai"), [testMode])
   const { toast } = useToast()
 
@@ -130,13 +132,17 @@ export default function ResultPage() {
     if (!result || !profile || isAnalyzing) return
     
     setIsAnalyzing(true)
+    setStreamingAnalysis('') 
+    setAiAnalysis(null)  // 清空旧的分析结果
+    
     try {
       const answers = JSON.parse(localStorage.getItem("mbti_answers_v1") || "{}")
       const questions = testMode.startsWith("ai") 
         ? JSON.parse(localStorage.getItem("mbti_ai_questions_v1") || "[]")
         : []
       
-      const response = await fetch('/api/generate-analysis', {
+      // 使用流式分析API
+      const response = await fetch('/api/generate-analysis-stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,19 +156,92 @@ export default function ResultPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate analysis')
+        throw new Error(`流式分析失败: ${response.status}`)
       }
-
-      const analysis = await response.json()
-      setAiAnalysis(analysis.analysis)
       
-      // 保存AI分析结果
-      localStorage.setItem('mbti_ai_analysis_v1', JSON.stringify(analysis.analysis))
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('无法读取响应流')
+      }
+      
+      let accumulatedContent = ''
+      
+      // 不显示初始提示toast，按钮状态已足够清楚
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        // 解析SSE数据
+        const chunk = new TextDecoder().decode(value)
+        const lines = chunk.split('\n')
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim()
+            
+            try {
+              const parsed = JSON.parse(data)
+              
+              if (parsed.type === 'delta') {
+                accumulatedContent = parsed.content
+                // 实时更新流式分析内容（打字机效果）
+                setStreamingAnalysis(parsed.content || accumulatedContent)
+                
+              } else if (parsed.type === 'done') {
+                // 流结束，解析最终结果
+                try {
+                  // 解析JSON内容 - 添加验证机制
+                  const jsonMatch = parsed.content.match(/\{[\s\S]*\}/)
+                  if (jsonMatch) {
+                    const jsonStr = jsonMatch[0]
+                    
+                    // 验证JSON是否完整（检查括号匹配）
+                    const openBraces = (jsonStr.match(/\{/g) || []).length
+                    const closeBraces = (jsonStr.match(/\}/g) || []).length
+                    
+                    if (openBraces !== closeBraces) {
+                      console.log('分析JSON还不完整，继续等待...')
+                      return
+                    }
+                    
+                    const analysisResult = JSON.parse(jsonStr)
+                    const analysis = analysisResult.analysis || {}
+                    
+                    setAiAnalysis(analysis)
+                    setStreamingAnalysis('')  // 清空流式内容
+                    
+                    // 保存AI分析结果
+                    localStorage.setItem('mbti_ai_analysis_v1', JSON.stringify(analysis))
+                    
+                    toast({ 
+                      title: 'AI分析完成！', 
+                      description: '个性化分析报告已生成，请查看下方内容'
+                    })
+                    
+                    return
+                  }
+                  throw new Error('解析分析结果失败')
+                } catch (parseError) {
+                  console.error('解析分析结果失败:', parseError)
+                  throw new Error('生成的分析结果格式无效')
+                }
+              } else if (parsed.type === 'error') {
+                throw new Error(parsed.error)
+              }
+            } catch (parseError) {
+              // 忽略解析错误，继续读取
+            }
+          }
+        }
+      }
+      
     } catch (error) {
       console.error('Error generating AI analysis:', error)
+      setStreamingAnalysis('')
       toast({
         title: "生成失败",
-        description: "AI分析生成失败，请检查网络后重试",
+        description: error instanceof Error ? error.message : "AI分析生成失败，请检查网络后重试",
         variant: "destructive",
       })
     } finally {
@@ -202,10 +281,11 @@ export default function ResultPage() {
   }
 
   const handleRegenerateAnalysis = () => {
-    setShowConfirmDialog(true)
+    setShowRegenerateDialog(true)
   }
-
+  
   const confirmRegenerateAnalysis = async () => {
+    setShowRegenerateDialog(false)
     try {
       localStorage.removeItem('mbti_ai_analysis_v1')
       setAiAnalysis(null)
@@ -514,7 +594,7 @@ export default function ResultPage() {
                   )}
                 </div>
 
-                {!aiAnalysis ? (
+                {!aiAnalysis && !streamingAnalysis ? (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
                       由 AI 结合你的个人资料、答题与结果，生成更具针对性的解读与建议。
@@ -524,13 +604,52 @@ export default function ResultPage() {
                       onClick={generateAIAnalysis}
                       disabled={isAnalyzing || !profile}
                     >
-                      {isAnalyzing ? '生成中…' : '生成AI分析'}
+                      {isAnalyzing ? (
+                        <div className="flex items-center gap-2">
+                          <Loader className="h-4 w-4 animate-spin" />
+                          AI正在分析中...
+                        </div>
+                      ) : (
+                        '生成AI分析'
+                      )}
                     </Button>
                     {!profile && (
                       <p className="text-xs text-amber-600">需要先在资料页完善个人资料后再生成分析。</p>
                     )}
                   </div>
-                ) : (
+                ) : (isAnalyzing || streamingAnalysis) && !aiAnalysis ? (
+                  // 流式分析内容（打字机效果）
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                      <Loader className="h-4 w-4 animate-spin" />
+                      AI正在生成个性化分析报告...
+                    </div>
+                    <div className="p-4 bg-muted/20 rounded-lg border border-dashed">
+                      <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        {streamingAnalysis || '正在连接AI分析服务...'}
+                        <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />
+                      </div>
+                    </div>
+                    <div className="pt-4 border-t border-muted/30">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={generateAIAnalysis}
+                        disabled={isAnalyzing}
+                      >
+                        {isAnalyzing ? (
+                          <div className="flex items-center gap-2">
+                            <Loader className="h-4 w-4 animate-spin" />
+                            重新生成中...
+                          </div>
+                        ) : (
+                          '重新生成分析'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : aiAnalysis ? (
                   <div className="space-y-4">
                     {aiAnalysis.summary && (
                       <div>
@@ -592,14 +711,27 @@ export default function ResultPage() {
                         复制分析
                         <Copy className="w-4 h-4 ml-2" />
                       </Button>
-                      <Button className={cn("rounded-xl text-white", `bg-gradient-to-br hover:opacity-90 ${gradient}`)} onClick={handleRegenerateAnalysis}>
-                        重新生成
-                        <Sparkles className="w-4 h-4 ml-2" />
+                      <Button 
+                        className={cn("rounded-xl text-white", `bg-gradient-to-br hover:opacity-90 ${gradient}`)} 
+                        onClick={handleRegenerateAnalysis}
+                        disabled={isAnalyzing}
+                      >
+                        {isAnalyzing ? (
+                          <div className="flex items-center gap-2">
+                            <Loader className="h-4 w-4 animate-spin" />
+                            重新生成中...
+                          </div>
+                        ) : (
+                          <>
+                            重新生成
+                            <Sparkles className="w-4 h-4 ml-2" />
+                          </>
+                        )}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">分析已自动保存到本地，仅你可见。</p>
                   </div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
             <Card className="rounded-2xl">
@@ -688,10 +820,10 @@ export default function ResultPage() {
       </footer>
 
       <ConfirmDialog
-        open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
+        open={showRegenerateDialog}
+        onOpenChange={setShowRegenerateDialog}
         title="重新生成AI分析"
-        description="确定要重新生成AI分析吗？这将覆盖本地已保存的分析。"
+        description="确定要重新生成AI分析吗？这将覆盖当前的分析结果。"
         confirmText="重新生成"
         cancelText="取消"
         variant="default"

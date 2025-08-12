@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import { SiteHeader } from "@/components/site-header"
 import { GradientBg } from "@/components/gradient-bg"
 import { type UserProfile } from "@/lib/mbti"
@@ -21,6 +22,7 @@ export default function TestModePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [selectedMode, setSelectedMode] = useState<TestMode>("standard")
   const [isGenerating, setIsGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 })
   const { toast } = useToast()
 
   useEffect(() => {
@@ -59,62 +61,14 @@ export default function TestModePage() {
       return
     }
 
-    // AI生成题目 - 使用快速并发生成API提升速度
+    // AI生成题目 - 批量生成
     setIsGenerating(true)
     try {
       const questionCount = selectedMode === "ai30" ? 30 : 60
       
-      // 显示生成开始提示
-      toast({
-        title: "AI正在生成题目...",
-        description: `正在为您生成${questionCount}道个性化题目，请稍等片刻`,
-      })
-      
-      // 一次性同步生成 - 使用新的同步并发API
-      const response = await fetch('/api/generate-questions-sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          profileData: profile,
-          questionCount
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `生成失败 (状态码: ${response.status})`)
-      }
-
-      const data = await response.json()
-      console.log('AI生成完成:', data)
-      console.log('API响应结构分析:', {
-        hasQuestions: !!data.questions,
-        questionsType: typeof data.questions,
-        questionsKeys: data.questions ? Object.keys(data.questions) : 'N/A',
-        dataKeys: Object.keys(data),
-        fullResponse: data
-      })
-      
-      // 处理同步API响应格式
-      const questions = data.questions || []
-      
-      if (Array.isArray(questions) && questions.length > 0) {
-        // 保存题目并跳转
-        localStorage.setItem('mbti_ai_questions_v1', JSON.stringify(questions))
-        localStorage.setItem('mbti_test_mode_v1', selectedMode)
-        
-        toast({
-          title: "生成成功！",
-          description: `AI已为您生成${questions.length}道个性化题目`,
-        })
-        
-        router.push("/test")
-        return
-      } else {
-        throw new Error(`生成的题目格式无效 (获得${questions.length}道题目)`)
-      }
+      // SSE流式生成模式
+      await generateWithStreamingAPI(questionCount)
+      router.push('/test')
       
     } catch (error) {
       console.error('Error generating questions:', error)
@@ -125,7 +79,126 @@ export default function TestModePage() {
       })
     } finally {
       setIsGenerating(false)
+      setGenerationProgress({ current: 0, total: 0 })
     }
+  }
+
+  // 流式输出防超时策略
+  const generateWithStreamingAPI = async (questionCount: number) => {
+    
+    return new Promise((resolve, reject) => {
+      // 直接调用流式输出API
+      fetch('/api/generate-questions-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileData: profile, questionCount })
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`流式生成失败: ${response.status}`)
+        }
+        
+        const reader = response.body?.getReader()
+        if (!reader) {
+          throw new Error('无法读取响应流')
+        }
+        
+        let accumulatedContent = ''
+        
+        // 初始化进度
+        setGenerationProgress({ current: 0, total: questionCount })
+        
+        // 显示初始提示（只在开始时弹一次）
+        toast({
+          title: "开始生成个性化题目",
+          description: `AI正在为您生成${questionCount}道题目，请查看下方进度条`,
+        })
+        
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          
+          // 解析SSE数据
+          const chunk = new TextDecoder().decode(value)
+          const lines = chunk.split('\n')
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim()
+              
+              try {
+                const parsed = JSON.parse(data)
+                
+                if (parsed.type === 'delta') {
+                  accumulatedContent = parsed.content
+                  
+                  // 实时解析已生成的题目数量
+                  const questionMatches = accumulatedContent.match(/"id"\s*:\s*"\d+"/g) || []
+                  const currentCount = questionMatches.length
+                  
+                  // 只更新进度状态，不弹toast（避免频繁弹窗）
+                  if (currentCount > generationProgress.current) {
+                    setGenerationProgress({ current: currentCount, total: questionCount })
+                  }
+                } else if (parsed.type === 'done') {
+                  // 流结束，解析最终结果
+                  try {
+                    // 解析JSON内容 - 添加更严格的验证
+                    const jsonMatch = parsed.content.match(/\{[\s\S]*\}/)
+                    if (jsonMatch) {
+                      const jsonStr = jsonMatch[0]
+                      
+                      // 验证JSON是否完整（简单检查括号匹配）
+                      const openBraces = (jsonStr.match(/\{/g) || []).length
+                      const closeBraces = (jsonStr.match(/\}/g) || []).length
+                      
+                      if (openBraces !== closeBraces) {
+                        console.log('JSON还不完整，继续等待...')
+                        return
+                      }
+                      
+                      const result = JSON.parse(jsonStr)
+                      const questions = result.questions || []
+                      
+                      if (Array.isArray(questions) && questions.length > 0) {
+                        // 保存到本地存储
+                        localStorage.setItem('mbti_ai_questions_v1', JSON.stringify(questions))
+                        localStorage.setItem('mbti_test_mode_v1', selectedMode)
+                        
+                        // 更新最终进度
+                        setGenerationProgress({ current: questions.length, total: questionCount })
+                        
+                        toast({ 
+                          title: '流式生成成功！', 
+                          description: `AI已为您生成${questions.length}道个性化题目`
+                        })
+                        
+                        resolve(questions)
+                        return
+                      }
+                    }
+                    throw new Error('解析生成结果失败')
+                  } catch (parseError) {
+                    console.error('解析生成结果失败:', parseError)
+                    reject(new Error('生成的题目格式无效'))
+                    return
+                  }
+                } else if (parsed.type === 'error') {
+                  reject(new Error(parsed.error))
+                  return
+                }
+              } catch (parseError) {
+                // 忽略解析错误，继续读取
+              }
+            }
+          }
+        }
+        
+      }).catch(error => {
+        console.error('流式生成错误:', error)
+        setGenerationProgress({ current: 0, total: 0 })
+        reject(error)
+      })
+    })
   }
 
   if (!profile) {
@@ -164,6 +237,44 @@ export default function TestModePage() {
             </p>
           </div>
         </div>
+
+        {/* 生成进度条 */}
+        {isGenerating && generationProgress.total > 0 && (
+          <Card className="rounded-2xl mb-6 border-fuchsia-200 bg-fuchsia-50/30">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-rose-500 text-white flex items-center justify-center">
+                  <Brain className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold text-lg">AI正在生成个性化题目</div>
+                  <div className="text-muted-foreground text-sm">
+                    已生成 {generationProgress.current} / {generationProgress.total} 道题目
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span>生成进度</span>
+                  <span className="font-semibold">
+                    {Math.round((generationProgress.current / generationProgress.total) * 100)}%
+                  </span>
+                </div>
+                
+                <Progress 
+                  value={(generationProgress.current / generationProgress.total) * 100}
+                  className="h-3 bg-white/50"
+                />
+                
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader className="w-3 h-3 animate-spin" />
+                  <span>AI正在根据您的个人资料定制题目...</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6 mb-8">
           {/* 标准模式 */}
@@ -225,7 +336,7 @@ export default function TestModePage() {
                   <div>• 题目更贴合个人情况</div>
                   <div>• 快速获得结果</div>
                   <div>• 答题约5-10分钟</div>
-                  <div className="text-amber-600 font-medium">• AI生成约需5分钟</div>
+                  <div className="text-green-600 font-medium">• 一次性生成约需1-3分钟</div>
                 </div>
               </div>
             </CardContent>
@@ -258,7 +369,7 @@ export default function TestModePage() {
                   <div>• 全面覆盖各个维度</div>
                   <div>• 最详细的个性化分析</div>
                   <div>• 答题约15-20分钟</div>
-                  <div className="text-amber-600 font-medium">• AI生成约需5-10分钟</div>
+                  <div className="text-blue-600 font-medium">• 一次性生成约需2-3分钟</div>
                 </div>
               </div>
             </CardContent>
@@ -275,7 +386,7 @@ export default function TestModePage() {
             {isGenerating ? (
               <>
                 <Loader className="w-4 h-4 mr-2 animate-spin" />
-                AI正在生成题目...({selectedMode === "ai30" ? "约5分钟" : "约5-10分钟"})
+                AI正在生成题目...
               </>
             ) : (
               <>
@@ -289,8 +400,7 @@ export default function TestModePage() {
         <Card className="rounded-2xl mt-8">
           <CardContent className="p-6 text-center">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              <strong>AI模式说明：</strong>我们的AI会根据您的年龄、职业、教育背景等信息，生成最适合您的个性化题目。
-              这些题目更贴近您的生活场景，能够更准确地反映您的性格特征。
+              选择最适合您的测试模式，所有模式都将为您提供准确的MBTI性格分析结果。
             </p>
           </CardContent>
         </Card>

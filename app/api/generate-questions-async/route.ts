@@ -6,6 +6,8 @@ const taskStorage = new Map<string, {
   questions?: any
   error?: string
   startTime: number
+  progress?: number  // 进度百分比
+  message?: string   // 当前状态描述
 }>()
 
 // 生成任务ID
@@ -13,51 +15,84 @@ function generateTaskId(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 }
 
-// 异步生成题目的实际逻辑
-async function generateQuestionsInternal(profileData: any, questionCount: number): Promise<any> {
-  const prompt = `请根据以下个人资料生成${questionCount}道个性化的MBTI测试题目：
+// 分块生成题目的核心逻辑
+async function generateQuestionsInChunks(profileData: any, totalCount: number, taskId: string): Promise<any> {
+  const allQuestions: any[] = []
+  const chunkSize = 15 // 每批生成15道题，减少单次请求压力
+  const totalChunks = Math.ceil(totalCount / chunkSize)
+  
+  console.log(`开始分块生成 ${totalCount} 道题目，分为 ${totalChunks} 批，每批 ${chunkSize} 道`)
+  
+  for (let chunk = 0; chunk < totalChunks; chunk++) {
+    const currentChunkSize = Math.min(chunkSize, totalCount - chunk * chunkSize)
+    const isLastChunk = chunk === totalChunks - 1
+    
+    // 更新任务状态
+    taskStorage.set(taskId, {
+      ...taskStorage.get(taskId)!,
+      status: 'pending',
+      progress: Math.round((chunk / totalChunks) * 100),
+      message: `正在生成第 ${chunk + 1}/${totalChunks} 批题目...`
+    })
+    
+    console.log(`生成第 ${chunk + 1}/${totalChunks} 批，${currentChunkSize} 道题目`)
+    
+    const chunkQuestions = await generateSingleChunk(profileData, currentChunkSize, chunk + 1, totalChunks)
+    allQuestions.push(...chunkQuestions)
+    
+    // 避免请求过于频繁，添加小延时
+    if (!isLastChunk) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+  }
+  
+  console.log(`所有批次生成完成，共 ${allQuestions.length} 道题目`)
+  return { questions: allQuestions }
+}
+
+// 生成单批题目
+async function generateSingleChunk(profileData: any, chunkSize: number, chunkIndex: number, totalChunks: number): Promise<any[]> {
+  const dimensions = ['E/I', 'S/N', 'T/F', 'J/P']
+  const focusDimension = dimensions[(chunkIndex - 1) % 4] // 轮流关注不同维度
+  
+  const prompt = `请根据个人资料生成 ${chunkSize} 道MBTI题目，重点关注 ${focusDimension} 维度：
 
 个人资料：
-- 年龄：${profileData.age}
+- 年龄：${profileData.age}岁
 - 性别：${profileData.gender}
 - 职业：${profileData.occupation}
-- 教育程度：${profileData.education}
-- 关注领域：${profileData.interests}
+- 教育：${profileData.education}
+- 兴趣：${profileData.interests}
 
-请返回JSON格式，包含${questionCount}道题目，每道题目包含：
-- text: 题目内容
-- options: 4个选项数组，每个选项包含text和mbti_weights
-- category: E/I, S/N, T/F, J/P之一
+要求：
+1. 生成 ${chunkSize} 道题目，优先关注 ${focusDimension} 维度
+2. 题目要贴合该用户的生活场景
+3. 使用简洁的JSON格式返回
 
-JSON格式如下：
+JSON格式：
 {
   "questions": [
     {
-      "text": "题目内容",
-      "options": [
-        {"text": "选项A", "mbti_weights": {"E": 2, "I": 0, "S": 1, "N": 0, "T": 0, "F": 0, "J": 0, "P": 0}},
-        {"text": "选项B", "mbti_weights": {"E": 0, "I": 2, "S": 0, "N": 1, "T": 0, "F": 0, "J": 0, "P": 0}},
-        {"text": "选项C", "mbti_weights": {"E": 1, "I": 0, "S": 0, "N": 0, "T": 2, "F": 0, "J": 0, "P": 0}},
-        {"text": "选项D", "mbti_weights": {"E": 0, "I": 1, "S": 0, "N": 0, "T": 0, "F": 2, "J": 0, "P": 0}}
-      ],
-      "category": "E/I"
+      "text": "在工作中遇到复杂问题时，你通常会？",
+      "dimension": "TF",
+      "agree": "T",
+      "id": "ai_1"
     }
   ]
-}`
+}
 
-  console.log('开始异步AI生成题目，数量：', questionCount)
-  
-  // 增加超时处理，最多重试2次
-  let lastError: any
+注意：只返回JSON，不要其他解释文字。每个题目必须有唯一的id。`
+
   const maxRetries = 2
+  let lastError: any
   
   for (let retry = 0; retry <= maxRetries; retry++) {
     try {
-      console.log(`异步AI请求尝试 ${retry + 1}/${maxRetries + 1}`)
+      console.log(`第${chunkIndex}批请求尝试 ${retry + 1}/${maxRetries + 1}`)
       
-      // 使用AbortController实现超时控制
+      // 缩短超时时间，提高成功率
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 300000) // 5分钟超时，适合异步场景
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 1分钟超时
       
       const response = await fetch(process.env.OPENAI_API_URL + '/v1/chat/completions', {
         method: 'POST',
@@ -70,16 +105,15 @@ JSON格式如下：
           messages: [
             {
               role: 'system',
-              content: '你是一位专业的MBTI心理测评专家，擅长根据个人情况生成个性化的心理测试题目。请务必返回完整的JSON格式。'
+              content: '你是MBTI专家，根据个人背景生成个性化题目。只返回JSON格式，不要额外说明。'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          temperature: 0.7,
-          max_tokens: 8000, // 异步场景可以使用更大的token限制
-          timeout: 300 // AI模型内部超时设置
+          temperature: 0.8,
+          max_tokens: 3000, // 减少token数量，提高响应速度
         }),
         signal: controller.signal
       })
@@ -88,42 +122,100 @@ JSON格式如下：
       
       if (response.ok) {
         const data = await response.json()
-        const content = data.choices[0].message.content
+        const content = data.choices[0].message.content.trim()
         
-        // 尝试解析AI返回的JSON
         try {
-          const aiQuestions = JSON.parse(content)
-          console.log('异步AI生成成功，题目数量：', aiQuestions.questions?.length || 0)
-          return aiQuestions
+          // 清理可能的markdown格式
+          const cleanContent = content.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+          const parsed = JSON.parse(cleanContent)
+          const questions = parsed.questions || []
+          
+          console.log(`第${chunkIndex}批生成成功，获得 ${questions.length} 道题目`)
+          return questions
         } catch (parseError) {
-          // 如果无法直接解析，尝试提取JSON部分
-          console.log('尝试提取JSON部分...')
+          // 尝试提取JSON
           const jsonMatch = content.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
-            const aiQuestions = JSON.parse(jsonMatch[0])
-            console.log('异步AI生成成功（提取），题目数量：', aiQuestions.questions?.length || 0)
-            return aiQuestions
+            const parsed = JSON.parse(jsonMatch[0])
+            const questions = parsed.questions || []
+            console.log(`第${chunkIndex}批生成成功（提取），获得 ${questions.length} 道题目`)
+            return questions
           }
-          throw parseError
+          throw new Error('JSON解析失败')
         }
       } else {
-        const errorText = await response.text()
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+        throw new Error(`HTTP ${response.status}`)
       }
     } catch (error: any) {
       lastError = error
-      console.error(`异步AI请求第${retry + 1}次尝试失败:`, error.message)
+      console.error(`第${chunkIndex}批请求第${retry + 1}次失败:`, error.message)
       
       if (retry < maxRetries) {
-        // 递增重试间隔：2秒、4秒
-        const delay = (retry + 1) * 2000
-        console.log(`等待${delay/1000}秒后重试...`)
+        const delay = Math.min(2000 * (retry + 1), 5000) // 最多等待5秒
+        console.log(`等待${delay/1000}秒后重试第${chunkIndex}批...`)
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     }
   }
   
-  throw lastError
+  // 如果所有重试都失败，返回空数组而不是抛出错误
+  console.error(`第${chunkIndex}批生成失败，使用降级方案`)
+  return generateFallbackQuestions(chunkSize, focusDimension)
+}
+
+// 降级方案：生成基础题目
+function generateFallbackQuestions(count: number, dimension: string): any[] {
+  const templates = {
+    'E/I': [
+      { text: '在团队讨论中，我更倾向于积极发言表达观点', dimension: 'EI', agree: 'E' },
+      { text: '长时间社交后，我需要独处来恢复能量', dimension: 'EI', agree: 'I' },
+      { text: '我享受在人群中成为关注的焦点', dimension: 'EI', agree: 'E' },
+      { text: '深度对话比广泛社交更让我满足', dimension: 'EI', agree: 'I' }
+    ],
+    'S/N': [
+      { text: '我更关注具体的事实和细节', dimension: 'SN', agree: 'S' },
+      { text: '我经常思考未来的可能性和潜力', dimension: 'SN', agree: 'N' },
+      { text: '我偏好按步骤执行既定的流程', dimension: 'SN', agree: 'S' },
+      { text: '我喜欢探索创新的解决方案', dimension: 'SN', agree: 'N' }
+    ],
+    'T/F': [
+      { text: '做决定时我主要依据逻辑分析', dimension: 'TF', agree: 'T' },
+      { text: '我会优先考虑决定对他人的影响', dimension: 'TF', agree: 'F' },
+      { text: '客观事实比个人感受更重要', dimension: 'TF', agree: 'T' },
+      { text: '维护关系和谐是我的重要考虑', dimension: 'TF', agree: 'F' }
+    ],
+    'J/P': [
+      { text: '我喜欢事先制定详细的计划', dimension: 'JP', agree: 'J' },
+      { text: '我更享受灵活应变的生活方式', dimension: 'JP', agree: 'P' },
+      { text: '按时完成任务对我很重要', dimension: 'JP', agree: 'J' },
+      { text: '我倾向于保持多种选择的开放性', dimension: 'JP', agree: 'P' }
+    ]
+  }
+  
+  const selectedTemplates = templates[dimension as keyof typeof templates] || templates['E/I']
+  const questions = []
+  
+  for (let i = 0; i < count; i++) {
+    const template = selectedTemplates[i % selectedTemplates.length]
+    questions.push({
+      ...template,
+      id: `fallback_${dimension}_${i + 1}`
+    })
+  }
+  
+  console.log(`生成 ${questions.length} 道降级题目`)
+  return questions
+}
+
+// 异步生成题目的实际逻辑（保持接口兼容）
+async function generateQuestionsInternal(profileData: any, questionCount: number, taskId?: string): Promise<any> {
+  if (taskId && questionCount > 15) {
+    // 使用分块策略
+    return generateQuestionsInChunks(profileData, questionCount, taskId)
+  }
+  
+  // 单次生成（保持原有逻辑用于小批量）
+  return generateSingleChunk(profileData, questionCount, 1, 1).then(questions => ({ questions }))
 }
 
 // POST: 启动异步生成任务
@@ -137,22 +229,28 @@ export async function POST(request: NextRequest) {
     // 初始化任务状态
     taskStorage.set(taskId, {
       status: 'pending',
-      startTime: Date.now()
+      startTime: Date.now(),
+      progress: 0,
+      message: '正在初始化AI生成任务...'
     })
     
     // 启动异步任务
-    generateQuestionsInternal(profileData, questionCount).then(questions => {
+    generateQuestionsInternal(profileData, questionCount, taskId).then(result => {
       taskStorage.set(taskId, {
         status: 'completed',
-        questions,
-        startTime: taskStorage.get(taskId)!.startTime
+        questions: result,
+        startTime: taskStorage.get(taskId)!.startTime,
+        progress: 100,
+        message: '所有题目生成完成！'
       })
       console.log(`任务 ${taskId} 完成`)
     }).catch(error => {
       taskStorage.set(taskId, {
         status: 'failed',
         error: error.message,
-        startTime: taskStorage.get(taskId)!.startTime
+        startTime: taskStorage.get(taskId)!.startTime,
+        progress: 0,
+        message: '生成失败，请重试'
       })
       console.error(`任务 ${taskId} 失败:`, error.message)
     })
@@ -177,6 +275,7 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url)
     const taskId = url.searchParams.get('taskId')
+    const wantsSSE = url.searchParams.get('sse') === '1' || (request.headers.get('accept') || '').includes('text/event-stream')
     
     console.log('查询任务状态:', taskId)
     console.log('当前存储中的任务:', Array.from(taskStorage.keys()))
@@ -186,6 +285,52 @@ export async function GET(request: NextRequest) {
         { error: '缺少taskId参数' },
         { status: 400 }
       )
+    }
+    
+    // SSE 分支：按秒推送任务状态与运行时间
+    if (wantsSSE) {
+      let interval: ReturnType<typeof setInterval> | undefined
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const encoder = new TextEncoder()
+          function sendEvent(data: any, event?: string) {
+            const payload = (event ? `event: ${event}\n` : '') + `data: ${JSON.stringify(data)}\n\n`
+            controller.enqueue(encoder.encode(payload))
+          }
+          // 立即发送一次，随后每秒推送
+          interval = setInterval(() => {
+            const task = taskStorage.get(taskId)
+            const startTime = task?.startTime || Date.now()
+            const runtimeSec = Math.max(0, Math.floor((Date.now() - startTime) / 1000))
+            const snapshot: any = {
+              taskId,
+              status: task?.status || 'unknown',
+              runtime: `${runtimeSec}秒`,
+              progress: task?.progress || 0,
+              message: task?.message || '处理中...'
+            }
+            sendEvent(snapshot)
+            if (!task || task.status === 'completed' || task.status === 'failed') {
+              // 结束事件并关闭
+              sendEvent(snapshot, 'end')
+              if (interval) clearInterval(interval)
+              controller.close()
+            }
+          }, 1000)
+        },
+        cancel() {
+          // 客户端断开
+          if (interval) clearInterval(interval)
+        }
+      })
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no'
+        }
+      })
     }
     
     const task = taskStorage.get(taskId)

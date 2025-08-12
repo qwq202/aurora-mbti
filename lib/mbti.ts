@@ -995,3 +995,45 @@ function shuffleArray<T>(array: T[]): T[] {
   }
   return shuffled
 }
+
+// AI题目转换为标准MBTI题目格式
+export function convertAIQuestionToMBTI(aiQuestion: any): Question {
+  // 确保有必要的字段
+  const converted: Question = {
+    id: aiQuestion.id || `ai_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+    text: aiQuestion.text || '默认题目',
+    dimension: convertDimensionFormat(aiQuestion.dimension) || 'EI',
+    agree: aiQuestion.agree || 'E',
+    contexts: aiQuestion.contexts || ['general'],
+    ageGroups: aiQuestion.ageGroups || ['young', 'adult', 'mature'],
+    workRelevant: aiQuestion.workRelevant || false,
+    socialRelevant: aiQuestion.socialRelevant || false
+  }
+  
+  return converted
+}
+
+// 转换维度格式 (E/I -> EI, T/F -> TF 等)
+function convertDimensionFormat(dimension: string): Dimension | undefined {
+  if (!dimension) return undefined
+  
+  const mapping: Record<string, Dimension> = {
+    'E/I': 'EI',
+    'EI': 'EI',
+    'S/N': 'SN',
+    'SN': 'SN',
+    'T/F': 'TF',
+    'TF': 'TF',
+    'J/P': 'JP',
+    'JP': 'JP'
+  }
+  
+  return mapping[dimension.toUpperCase()]
+}
+
+// 批量转换AI题目为标准格式
+export function convertAIQuestionsToMBTI(aiQuestions: any[]): Question[] {
+  if (!Array.isArray(aiQuestions)) return []
+  
+  return aiQuestions.map(convertAIQuestionToMBTI)
+}

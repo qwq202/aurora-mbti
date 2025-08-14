@@ -1,19 +1,40 @@
-# 🌟 Aurora MBTI - AI智能人格测试应用
+# 🌟 Aurora MBTI - 新一代AI智能人格测试平台
 
-基于AI技术的现代化MBTI人格测试平台，支持个性化出题和智能结果分析。
+> 基于最新AI技术的现代化MBTI人格测试应用，提供个性化出题、智能分析和完整的测试体验
 
-## ✨ 功能特色
+Aurora MBTI 是一个功能完整的人格测试平台，结合了传统MBTI理论与现代AI技术，为用户提供准确、个性化、有深度的人格分析体验。
 
-- 🤖 **AI智能出题**: 基于个人背景生成个性化测试题目
-- 🎯 **精准分析**: AI深度解析性格特征，提供专业建议
-- 📱 **响应式设计**: 完美支持PC和移动设备
-- 🔒 **隐私保护**: 数据仅存储在本地，保护用户隐私
-- ⚡ **快速部署**: 支持Docker一键部署
-- 🎨 **现代UI**: 基于Tailwind CSS的精美界面
+## ✨ 核心特色
+
+### 🤖 智能化测试体验
+- **AI个性化出题**: 根据用户职业、兴趣、年龄等背景信息生成专属题目
+- **多种测试模式**: 支持AI模式(30/60/120题)，适应不同测试需求
+- **流式生成**: 实时生成题目，提供平滑的用户体验
+- **进度恢复**: 智能保存测试进度，支持跨设备无缝继续
+
+### 🎯 专业分析系统
+- **AI深度分析**: GPT驱动的性格特征分析，提供专业建议
+- **可视化图表**: 雷达图、条形图等多维度展示性格维度
+- **详细报告**: 包含性格描述、优势、建议、职业匹配等
+- **可信度评估**: 基于答题模式分析结果可信度
+
+### 🔄 完整功能生态
+- **用户档案**: 详细的个人信息管理，支持社交偏好设置
+- **历史记录**: 完整的测试历史，支持结果对比和趋势分析
+- **类型百科**: 16种MBTI类型的详细介绍和特征说明
+- **隐私保护**: 所有数据本地存储，确保用户隐私安全
+
+### 🛠️ 技术优势
+- **现代技术栈**: Next.js 15 + React 18 + TypeScript
+- **响应式设计**: 完美适配桌面端和移动端
+- **性能优化**: 懒加载、代码分割、缓存策略
+- **多端部署**: 支持Docker、静态部署、CDN等多种方式
 
 ## 🚀 在线体验
 
-[点击体验在线版本](https://mbti.qunqin.net) （如果你已部署）
+**官方演示**: [https://mbti.qunqin.net](https://mbti.qunqin.net)
+
+体验最新功能，包括AI智能出题和完整的测试流程。
 
 ## 📸 应用截图
 
@@ -30,22 +51,56 @@
 
 ## 🛠️ 技术栈
 
-- **前端框架**: Next.js 15 + React 18
-- **样式系统**: Tailwind CSS
-- **UI组件**: Radix UI
+### 前端技术
+- **框架**: Next.js 15 + React 18 + TypeScript
+- **样式**: Tailwind CSS + CSS Modules
+- **UI组件**: Radix UI + shadcn/ui
 - **图标**: Lucide React
-- **字体**: Geist Font
-- **AI集成**: OpenAI 兼容 API
-- **部署**: Docker + Nginx
+- **字体**: Geist Sans + Geist Mono
+- **图表**: 自定义雷达图和条形图组件
+- **动画**: CSS Transitions + Framer Motion
+
+### 后端与AI
+- **API路由**: Next.js App Router API
+- **AI模型**: OpenAI GPT-4/GPT-3.5 兼容API
+- **流式响应**: Server-Sent Events
+- **数据存储**: 本地 localStorage + IndexedDB
+
+### 开发与部署
+- **包管理**: pnpm
+- **代码规范**: ESLint + Prettier
+- **构建工具**: Next.js + Turbopack
+- **容器化**: Docker + Docker Compose
+- **反向代理**: Nginx
+- **部署方式**: Docker Hub + 静态部署 + CDN
 
 ## ⚡ 快速开始
 
-### 方法一：Docker部署 (推荐)
+### 方法一：Docker Hub镜像部署 (推荐)
+
+直接使用预构建的Docker镜像，无需下载源码：
+
+```bash
+docker run -d -p 3000:3000 --name MBTI \
+  -e OPENAI_API_URL=your-api-url \
+  -e OPENAI_API_KEY=your-api-key \
+  -e OPENAI_MODEL=moonshotai/kimi-k2 \
+  qunqin45/aurora-mbti:latest
+```
+
+**参数说明：**
+- `OPENAI_API_URL`: AI服务API地址
+- `OPENAI_API_KEY`: API密钥
+- `OPENAI_MODEL`: 使用的模型（支持OpenAI兼容模型）
+
+**访问应用：** `http://localhost:3000`
+
+### 方法二：源码构建部署
 
 1. **克隆项目**
 ```bash
-git clone <repository-url>
-cd mbti-app
+git clone https://github.com/qwq202/aurora-mbti.git
+cd aurora-mbti
 ```
 
 2. **配置环境变量**
@@ -54,16 +109,12 @@ cp env.template .env.local
 # 编辑 .env.local，填入你的API配置
 ```
 
-3. **一键部署**
+3. **构建并运行**
 ```bash
-chmod +x docker-build.sh
-./docker-build.sh
-docker-compose up -d
-```
-
-4. **访问应用**
-```
-http://localhost:3000
+docker build -t aurora-mbti .
+docker run -d -p 3000:3000 --name MBTI \
+  --env-file .env.local \
+  aurora-mbti
 ```
 
 ### 方法二：本地开发
@@ -243,6 +294,34 @@ tail -f logs/app.log
 - 使用TypeScript
 - 遵循ESLint规则
 - 提交前运行测试
+
+## 🔄 最新更新
+
+### v2024.08 - AI测试体验重大升级
+
+#### ✅ 核心功能优化
+- **AI测试进度恢复** - 彻底修复进度丢失问题，支持无缝继续测试
+- **智能题目生成** - 优化AI出题算法，提供更加个性化的测试体验
+- **流式响应优化** - 改进AI生成的稳定性和错误处理机制
+- **用户体验提升** - 优化页面加载速度和交互响应
+
+#### 🎯 新增功能
+- **历史记录系统** - 完整的测试历史查看和对比功能
+- **性能监控** - 实时监控应用性能，确保最佳用户体验
+- **可视化图表** - 新增自定义雷达图和条形图组件
+- **延迟加载** - 优化资源加载，提升页面响应速度
+
+#### 🛠️ 技术改进
+- **代码重构** - 优化组件结构，提高代码维护性
+- **类型安全** - 增强TypeScript类型定义，减少运行时错误
+- **缓存策略** - 智能缓存机制，避免数据丢失
+- **错误处理** - 完善错误边界和异常恢复机制
+
+#### 🐛 问题修复
+- 修复AI测试模式进度恢复失败的时序问题
+- 解决空答案状态覆盖已有缓存的bug
+- 修复题目ID不一致导致的匹配失败
+- 优化答案加载逻辑，确保在题目加载完成后进行
 
 ## 📄 许可证
 

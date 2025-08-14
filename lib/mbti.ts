@@ -998,12 +998,30 @@ function shuffleArray<T>(array: T[]): T[] {
 
 // AI题目转换为标准MBTI题目格式
 export function convertAIQuestionToMBTI(aiQuestion: any): Question {
+  // 生成基于题目内容的稳定ID，避免随机ID导致答案缓存失效
+  const generateStableId = (text: string, dimension: string, agree: string): string => {
+    const content = `${text}_${dimension}_${agree}`
+    let hash = 0
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32bit integer
+    }
+    return `ai_${Math.abs(hash).toString(36)}`
+  }
+
   // 确保有必要的字段
+  const text = typeof aiQuestion.text === 'string' && aiQuestion.text.trim() ? aiQuestion.text : '默认题目'
+  const dimension = convertDimensionFormat(aiQuestion.dimension) || 'EI'
+  const agree = (typeof aiQuestion.agree === 'string' && aiQuestion.agree) ? aiQuestion.agree : (dimension[0] as Letter)
+  const stableId = generateStableId(text, dimension, agree)
+
   const converted: Question = {
-    id: aiQuestion.id || `ai_${Date.now()}_${Math.random().toString(36).substring(2)}`,
-    text: aiQuestion.text || '默认题目',
-    dimension: convertDimensionFormat(aiQuestion.dimension) || 'EI',
-    agree: aiQuestion.agree || 'E',
+    // 始终使用基于内容的稳定ID，确保带有 ai_ 前缀
+    id: stableId,
+    text,
+    dimension,
+    agree,
     contexts: aiQuestion.contexts || ['general'],
     ageGroups: aiQuestion.ageGroups || ['young', 'adult', 'mature'],
     workRelevant: aiQuestion.workRelevant || false,

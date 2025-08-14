@@ -8,6 +8,16 @@ export async function POST(request: NextRequest) {
     console.log(`启动真正的流式生成: ${questionCount}题`)
     
     // 构建AI提示词
+    const accuracyAddendum = questionCount >= 100 ? `
+## 精确度增强要求（用于${questionCount}道题的大规模高准确性测评）
+7. 题干需避免歧义、避免双重否定与多重概念；每题只考察一个核心倾向
+8. 同一维度要覆盖多种典型情境（工作/学习/社交/压力/决策），且包含正反向措辞（reverse-keyed）以抵消响应偏差
+9. 尽量避免引导性措辞与罕见情境；确保一般用户都能理解并代入
+10. 控制题干长度在自然、易读范围（一般不超过30字中文），避免过长
+11. 明确排除重复或近义重述；同维度的题目应从不同切面发问
+12. 输出顺序建议按维度分块或均匀交替，以利于后续评分稳定
+` : ''
+
     const prompt = `你是MBTI心理测试专家，需要为用户生成${questionCount}道个性化测试题目。
 
 ## 用户画像
@@ -25,6 +35,7 @@ export async function POST(request: NextRequest) {
 4. **场景真实**：基于用户实际生活场景，避免抽象或不符合身份的情况
 5. **表达自然**：使用第一人称，语言自然流畅，避免生硬的测试语气
 6. **目的隐蔽**：题目不应让用户明显看出在测试哪个维度
+${accuracyAddendum}
 
 ## 维度说明与示例
 - **EI维度**：内向vs外向，关注能量获取方式
@@ -46,10 +57,27 @@ export async function POST(request: NextRequest) {
 
     // 设置SSE响应头
     const encoder = new TextEncoder()
+    const temperature = questionCount >= 100 ? 0.35 : 0.7
     
     const stream = new ReadableStream({
       async start(controller) {
+        // 提前声明，确保 finally 可见
+        let pingTimer: any | null = null
+        let abortSignal: AbortSignal | null = null
+        let onAbort: (() => void) | null = null
         try {
+          let isClosed = false
+          const safeEnqueue = (chunk: Uint8Array) => {
+            if (isClosed) return
+            try { controller.enqueue(chunk) } catch { isClosed = true }
+          }
+          // 心跳：保持连接，避免中间层超时断开
+          const heartbeat = () => safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: 'ping', t: Date.now() })}\n\n`))
+          pingTimer = setInterval(heartbeat, 10000)
+          // 立即发送一次启动事件与心跳
+          safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: 'start' })}\n\n`))
+          heartbeat()
+
           // 调用OpenAI API with stream=true
           const response = await fetch(process.env.OPENAI_API_URL + '/v1/chat/completions', {
             method: 'POST',
@@ -62,7 +90,7 @@ export async function POST(request: NextRequest) {
               messages: [
                 { role: 'user', content: prompt }
               ],
-              temperature: 0.7,
+              temperature,
               stream: true  // 关键：启用流式输出
             })
           })
@@ -75,6 +103,17 @@ export async function POST(request: NextRequest) {
           if (!reader) {
             throw new Error('无法读取响应流')
           }
+
+          // 处理客户端断开
+          abortSignal = request.signal
+          onAbort = () => {
+            isClosed = true
+            try { if (pingTimer) clearInterval(pingTimer) } catch {}
+            try { reader.cancel() } catch {}
+            try { controller.close() } catch {}
+          }
+          if (abortSignal.aborted) onAbort()
+          else abortSignal.addEventListener('abort', onAbort)
 
           let accumulatedContent = ''
           
@@ -93,11 +132,12 @@ export async function POST(request: NextRequest) {
                 
                 if (data === '[DONE]') {
                   // 流结束，发送最终结果
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                  safeEnqueue(encoder.encode(`data: ${JSON.stringify({
                     type: 'done',
                     content: accumulatedContent
                   })}\n\n`))
-                  controller.close()
+                  try { if (pingTimer) clearInterval(pingTimer) } catch {}
+                  if (!isClosed) { try { controller.close(); isClosed = true } catch { isClosed = true } }
                   return
                 }
                 
@@ -109,7 +149,7 @@ export async function POST(request: NextRequest) {
                     accumulatedContent += delta
                     
                     // 实时发送增量内容
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                    safeEnqueue(encoder.encode(`data: ${JSON.stringify({
                       type: 'delta',
                       delta: delta,
                       content: accumulatedContent
@@ -123,12 +163,22 @@ export async function POST(request: NextRequest) {
           }
           
         } catch (error) {
-          console.error('流式生成错误:', error)
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-            type: 'error',
-            error: error instanceof Error ? error.message : '生成失败'
-          })}\n\n`))
-          controller.close()
+          // 如果是客户端中止或读流被终止，降级为警告
+          const isAbort = error instanceof Error && (/abort/i.test(error.message) || error.name === 'AbortError' || /terminated/i.test(String(error)))
+          if (isAbort) console.warn('流式生成中止:', error)
+          else console.error('流式生成错误:', error)
+          try {
+            const payload = encoder.encode(`data: ${JSON.stringify({
+              type: 'error',
+              error: error instanceof Error ? error.message : '生成失败'
+            })}\n\n`)
+            // 使用局部safe enqueue逻辑，避免引用外层变量作用域问题
+            try { (controller as ReadableStreamDefaultController).enqueue(payload) } catch {}
+          } finally {
+            try { if (pingTimer) clearInterval(pingTimer) } catch {}
+            try { if (abortSignal && onAbort) abortSignal.removeEventListener('abort', onAbort as any) } catch {}
+            try { (controller as ReadableStreamDefaultController).close() } catch {}
+          }
         }
       }
     })

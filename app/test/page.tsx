@@ -125,35 +125,84 @@ export default function TestPage() {
   const currentValue = answers[currentQuestion?.id] as LikertValue | undefined
 
   useEffect(() => {
+    // 只有在题目加载完成后才进行答案匹配
+    if (questions.length === 0) {
+      console.log('⏳ 等待题目加载完成...')
+      return
+    }
+    
     try {
       const saved = localStorage.getItem(ANSWERS_KEY)
+      console.log('🔍 加载答案缓存:', { 
+        hasCache: !!saved, 
+        questionsLength: questions.length,
+        testMode,
+        profileLoaded 
+      })
       if (saved) {
         const parsed: Answers = JSON.parse(saved)
-        setAnswers(parsed)
+        const answerCount = Object.keys(parsed).length
+        
+        // 计算实际匹配的答案
+        const matchedAnswers: Answers = {}
+        let matchedCount = 0
+        questions.forEach(q => {
+          if (parsed[q.id]) {
+            matchedAnswers[q.id] = parsed[q.id]
+            matchedCount++
+          }
+        })
+        
+        console.log('📊 缓存中的答案数量:', answerCount, '实际匹配:', matchedCount, '题目匹配:', matchedAnswers)
+        setAnswers(matchedAnswers)
+        
         // Move to first unanswered
-        const idx = questions.findIndex((q: Question) => !parsed[q.id])
+        const idx = questions.findIndex((q: Question) => !matchedAnswers[q.id])
+        console.log('🎯 跳转到题目索引:', idx, '当前步骤:', step)
         setStep(idx === -1 ? 0 : idx)
+      } else {
+        console.log('❌ 没有找到答案缓存')
       }
-    } catch {}
+    } catch (error) {
+      console.error('💥 答案加载失败:', error)
+    }
   }, [questions])
   
   // 监听测试模式变化，清理相关缓存
+  const [initialTestMode, setInitialTestMode] = useState<string>("")
   useEffect(() => {
     if (!profileLoaded) return
     
-    // 当测试模式改变时，清理之前的答案和结果缓存
-    try {
-      localStorage.removeItem(ANSWERS_KEY)
-      localStorage.removeItem(RESULT_KEY)
-      setAnswers({})
-      setStep(0)
-    } catch {}
-  }, [testMode, profileLoaded])
+    // 记录初始测试模式
+    if (!initialTestMode) {
+      console.log('🎯 记录初始测试模式:', testMode)
+      setInitialTestMode(testMode)
+      return
+    }
+    
+    // 只有当模式真正改变时才清理缓存，避免恢复测试时误清理
+    if (testMode !== initialTestMode) {
+      console.log('🗑️ 测试模式改变，清理缓存:', { from: initialTestMode, to: testMode })
+      try {
+        localStorage.removeItem(ANSWERS_KEY)
+        localStorage.removeItem(RESULT_KEY)
+        setAnswers({})
+        setStep(0)
+        setInitialTestMode(testMode)
+      } catch {}
+    } else {
+      console.log('✅ 测试模式未改变，保持缓存:', testMode)
+    }
+  }, [testMode, profileLoaded, initialTestMode])
 
   useEffect(() => {
-    try {
-      localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers))
-    } catch {}
+    // 只有当answers不为空时才保存，避免空答案覆盖已有缓存
+    if (Object.keys(answers).length > 0) {
+      try {
+        localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers))
+        console.log('💾 保存答案缓存:', Object.keys(answers).length, '个答案')
+      } catch {}
+    }
   }, [answers])
 
   const answeredCount = questions.filter((q: Question) => answers[q.id]).length

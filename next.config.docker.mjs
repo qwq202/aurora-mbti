@@ -12,7 +12,6 @@ const nextConfig = {
     unoptimized: true,
   },
   // Performance optimizations
-  swcMinify: true,
   // 移除可能导致构建问题的实验性功能
   // experimental: {
   //   optimizeCss: true,

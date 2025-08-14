@@ -14,7 +14,6 @@ const nextConfig = {
   },
   compress: true,
   // Performance optimizations
-  swcMinify: true,
   experimental: {
     optimizeCss: true,
   },

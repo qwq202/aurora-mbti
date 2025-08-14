@@ -87,7 +87,7 @@ export default function ProfilePage() {
   const startTest = () => {
     if (!isComplete) return
     saveProfile()
-    router.push("/test-mode")
+    router.push("/test-mode?from=profile")
   }
 
   const isComplete = profile.name && profile.age && profile.gender && profile.occupation

@@ -7,101 +7,19 @@ import { Card, CardContent } from "@/components/ui/card"
 import { SiteHeader } from "@/components/site-header"
 import { GradientBg } from "@/components/gradient-bg"
 import { formatScoresForShare, type MbtiResult, typeDisplayInfo, type UserProfile } from "@/lib/mbti"
-import { ArrowLeft, Copy, Home, Share2, Sparkles, Star, Target, TrendingUp, Users, Loader } from "lucide-react"
+import { getWorkEnvironment, getCommunicationStyle, getPotentialChallenges, getPracticalTips, type HistoryEntry, RESULT_KEY, ANSWERS_KEY, HISTORY_KEY, COMPARE_KEY } from "@/lib/result-helpers"
+import { ArrowLeft, Copy, Home, Share2, Sparkles, Star, Target, TrendingUp, Users, Loader, FileJson, History } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
-const RESULT_KEY = "mbti_result_v1"
-const ANSWERS_KEY = "mbti_answers_v1"
+import dynamic from "next/dynamic"
 
-function getWorkEnvironment(type: string): string {
-  const environments: Record<string, string> = {
-    INTJ: "独立思考空间，长期项目规划，最小化不必要会议",
-    INTP: "灵活自由的研究环境，允许深度探索，鼓励创新实验",
-    ENTJ: "目标明确的领导岗位，快节奏决策环境，资源充足的团队",
-    ENTP: "多样化挑战，头脑风暴文化，变化丰富的项目内容",
-    INFJ: "价值导向的组织，一对一深度协作，有意义的工作内容",
-    INFP: "创意表达空间，价值观契合，灵活的工作方式",
-    ENFJ: "团队协作环境，人员发展机会，正面影响他人的平台",
-    ENFP: "多元化团队，创意项目，人际互动丰富的环境",
-    ISTJ: "稳定有序的流程，明确的角色职责，可预期的工作节奏",
-    ISFJ: "支持型团队角色，和谐的人际关系，服务导向的文化",
-    ESTJ: "结构化管理岗位，效率驱动环境，清晰的组织层级",
-    ESFJ: "团队协调角色，人际关系重要，温暖的组织文化",
-    ISTP: "动手实践机会，技术导向环境，独立解决问题的空间",
-    ISFP: "创意表达自由，价值观包容，低压力的协作环境",
-    ESTP: "快节奏行动环境，实际问题解决，多样化的挑战",
-    ESFP: "活跃的团队氛围，人际互动频繁，正能量的工作文化"
-  }
-  return environments[type] || "多元化环境，发挥个人特长"
-}
+const RadarChart = dynamic(() => import("@/components/charts/RadarChart").then(mod => ({ default: mod.RadarChart })), {
+  loading: () => <div className="flex items-center justify-center h-[320px] text-muted-foreground">加载图表中...</div>,
+  ssr: false
+})
 
-function getCommunicationStyle(type: string): string {
-  const styles: Record<string, string> = {
-    INTJ: "偏好简洁高效的沟通，喜欢事先准备，重视深度而非频率",
-    INTP: "享受概念探讨，需要时间整理思路，欣赏逻辑清晰的对话",
-    ENTJ: "直接明确的表达，快速决策导向，善于激励他人行动",
-    ENTP: "思维跳跃式交流，喜欢辩论探讨，能够快速适应话题变化",
-    INFJ: "一对一深度交流，重视情感共鸣，需要安全的表达环境",
-    INFP: "真诚温和的沟通，重视个人价值观，需要被理解和接纳",
-    ENFJ: "善于倾听他人，富有感染力，能够营造温暖的交流氛围",
-    ENFP: "热情开放的交流，善于连接不同观点，喜欢启发性对话",
-    ISTJ: "实事求是的表达，喜欢有条理的讨论，重视可靠的信息",
-    ISFJ: "温和体贴的沟通，善于察觉他人需求，避免冲突和争执",
-    ESTJ: "条理分明的表达，重视效率和结果，善于组织和协调",
-    ESFJ: "温暖友好的交流，关注他人感受，善于维护团队和谐",
-    ISTP: "简洁实用的表达，重视行动胜过言语，偏好一对一交流",
-    ISFP: "温和包容的沟通，重视个人空间，通过行动表达关怀",
-    ESTP: "直接活跃的交流，善于现场应对，喜欢实际的讨论内容",
-    ESFP: "活泼热情的表达，善于调节气氛，重视积极的互动体验"
-  }
-  return styles[type] || "独特的沟通风格，善于表达个人观点"
-}
-
-function getPotentialChallenges(type: string): string {
-  const challenges: Record<string, string> = {
-    INTJ: "可能过于关注长远而忽略当下细节，有时显得不够灵活或难以妥协",
-    INTP: "容易陷入分析瘫痪，可能拖延决策或忽视实际执行",
-    ENTJ: "可能过于强势推进，忽略他人感受或细节考虑",
-    ENTP: "容易分散注意力，可能缺乏持续性和深度聚焦",
-    INFJ: "可能过度理想化，容易感到疲惫或承担过多责任",
-    INFP: "可能过于敏感，在冲突面前容易退缩或纠结",
-    ENFJ: "可能过度关注他人需求而忽略自己，容易感到负担过重",
-    ENFP: "可能缺乏持续性，容易被新想法分散注意力",
-    ISTJ: "可能过于依赖既定方式，在变化面前感到不适",
-    ISFJ: "可能过度付出而忽视自己需求，难以拒绝他人",
-    ESTJ: "可能过于注重效率而忽略人际关系的细腻处理",
-    ESFJ: "可能过于在意他人评价，难以做出可能引起不满的决定",
-    ISTP: "可能在长期规划方面较弱，沟通时过于简洁",
-    ISFP: "可能在竞争环境中感到不适，难以主动推销自己",
-    ESTP: "可能缺乏长远规划，在需要深度思考时感到不耐烦",
-    ESFP: "可能难以处理批评，在压力下容易情绪化"
-  }
-  return challenges[type] || "每种性格类型都有其独特的挑战领域"
-}
-
-function getPracticalTips(type: string): string {
-  const tips: Record<string, string> = {
-    INTJ: "设置定期回顾检查点，主动征求他人反馈，培养灵活应变能力",
-    INTP: "设定明确的截止日期，找到思考与行动的平衡点，寻找志同道合的合作伙伴",
-    ENTJ: "练习倾听技巧，留出时间考虑他人观点，培养耐心和共情能力",
-    ENTP: "使用任务管理工具，设置优先级，定期回顾和聚焦核心目标",
-    INFJ: "学会设置边界，定期独处恢复能量，将理想分解为可行的步骤",
-    INFP: "练习表达不同意见，寻找支持性环境，将价值观转化为具体行动",
-    ENFJ: "学会说不，定期自我关怀，建立个人支持网络",
-    ENFP: "使用提醒工具保持专注，寻找变化与稳定的平衡，培养完成项目的习惯",
-    ISTJ: "小步尝试新方法，寻找变化中的规律，与开放型伙伴合作",
-    ISFJ: "练习表达个人需求，学会适度拒绝，定期评估自己的付出与回报",
-    ESTJ: "留出时间处理人际关系，练习换位思考，培养包容不同工作风格的能力",
-    ESFJ: "建立自信心，练习基于事实而非他人反应做决定，寻求建设性反馈",
-    ISTP: "制定简单的长期计划，练习更详细的沟通，主动分享想法和进展",
-    ISFP: "寻找适合的表达方式，在支持性环境中展示能力，培养自信心",
-    ESTP: "使用简单的规划工具，培养反思习惯，寻找长远目标的即时收益",
-    ESFP: "学习接受建设性批评，培养情绪管理技巧，建立稳定的支持系统"
-  }
-  return tips[type] || "持续学习和自我发展是每个人的成长之路"
-}
 
 export default function ResultPage() {
   const [result, setResult] = useState<MbtiResult | null>(null)
@@ -112,21 +30,320 @@ export default function ResultPage() {
   const [streamingAnalysis, setStreamingAnalysis] = useState<string>('')
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false)
+  const [compareEntry, setCompareEntry] = useState<HistoryEntry | null>(null)
   const isAiMode = useMemo(() => testMode?.startsWith("ai"), [testMode])
   const { toast } = useToast()
 
+  // 初始化：从本地读取结果、资料、测试模式与对比目标
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(RESULT_KEY)
-      if (saved) setResult(JSON.parse(saved))
-      
+      const savedResult = localStorage.getItem(RESULT_KEY)
+      if (savedResult) setResult(JSON.parse(savedResult))
+
       const savedProfile = localStorage.getItem("mbti_profile_v1")
       if (savedProfile) setProfile(JSON.parse(savedProfile))
-      
-      const savedTestMode = localStorage.getItem("mbti_test_mode_v1")
-      if (savedTestMode) setTestMode(savedTestMode)
+
+      const savedMode = localStorage.getItem("mbti_test_mode_v1")
+      if (savedMode) setTestMode(savedMode)
+
+      const savedCompare = localStorage.getItem(COMPARE_KEY)
+      if (savedCompare) setCompareEntry(JSON.parse(savedCompare))
     } catch {}
   }, [])
+
+  // 保存当前结果到历史记录
+  const saveToHistory = () => {
+    if (!result) {
+      toast({ title: "无法保存", description: "当前没有可保存的结果", variant: "destructive" })
+      return
+    }
+    try {
+      const entry: HistoryEntry = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        createdAt: Date.now(),
+        testMode,
+        result,
+        profile: profile ?? null,
+      }
+      const raw = localStorage.getItem(HISTORY_KEY)
+      const list: HistoryEntry[] = raw ? JSON.parse(raw) : []
+      list.unshift(entry)
+      // 可选：限制最大条数
+      const capped = list.slice(0, 100)
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(capped))
+      toast({ title: "已保存到历史", description: `类型 ${result.type} 已保存` })
+    } catch (e) {
+      console.error(e)
+      toast({ title: "保存失败", description: "写入历史记录时出现问题", variant: "destructive" })
+    }
+  }
+
+  // 导出JSON
+  const exportJSON = () => {
+    if (!result) return
+    try {
+      const data = {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        testMode,
+        result,
+        profile: profile ?? null,
+        aiAnalysis: aiAnalysis ?? null,
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const date = new Date().toISOString().slice(0, 10)
+      a.download = `mbti-${result.type}-${date}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast({ title: "JSON 已导出", description: "下载已开始" })
+    } catch (e) {
+      console.error(e)
+      toast({ title: "导出失败", description: "导出 JSON 时出现问题", variant: "destructive" })
+    }
+  }
+
+  
+
+  // 生成社交卡 PNG（将SVG转为图片，再绘制到Canvas）
+  const generateSocialCardPng = async () => {
+    if (!result) return
+    try {
+      const width = 1200
+      const height = 630
+      const info = typeDisplayInfo(result.type)
+      const userName = profile?.name || '用户'
+      const testModeLabel = testMode?.startsWith('ai') ? 'AI智能模式' : '标准模式'
+      const aiSummary = (aiAnalysis?.summary || info?.blurb || '个性鲜明，优势突出').slice(0, 120)
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://aurora-mbti.example.com'
+      const socialPrefMap: Record<string, string> = { quiet: '安静内向', social: '社交活跃', balanced: '自在平衡' }
+      const socialPref = (profile?.socialPreference && socialPrefMap[profile.socialPreference]) || '多元偏好'
+      const confidence = Math.round(result.confidence?.overall ?? 0)
+
+      // 设备像素比缩放，导出更清晰
+      const scale = Math.min(2, Math.max(1, Math.floor((window.devicePixelRatio || 1))))
+
+      // 计算主导维度
+      const dominantDims = [
+        result.scores.EI?.percentFirst >= 60 ? 'E' : result.scores.EI?.percentSecond >= 60 ? 'I' : null,
+        result.scores.SN?.percentFirst >= 60 ? 'S' : result.scores.SN?.percentSecond >= 60 ? 'N' : null,
+        result.scores.TF?.percentFirst >= 60 ? 'T' : result.scores.TF?.percentSecond >= 60 ? 'F' : null,
+        result.scores.JP?.percentFirst >= 60 ? 'J' : result.scores.JP?.percentSecond >= 60 ? 'P' : null,
+      ].filter(Boolean)
+
+      // 核心优势标签
+      const strengthTags = info?.strengths?.slice(0, 3) || ['专注高效', '逻辑清晰', '目标导向']
+
+      // 维度数据（用于雷达与条形图）
+      const dims = [
+        { key: 'EI', left: 'E', right: 'I', leftPct: result.scores.EI?.percentFirst ?? 50, rightPct: result.scores.EI?.percentSecond ?? 50 },
+        { key: 'SN', left: 'S', right: 'N', leftPct: result.scores.SN?.percentFirst ?? 50, rightPct: result.scores.SN?.percentSecond ?? 50 },
+        { key: 'TF', left: 'T', right: 'F', leftPct: result.scores.TF?.percentFirst ?? 50, rightPct: result.scores.TF?.percentSecond ?? 50 },
+        { key: 'JP', left: 'J', right: 'P', leftPct: result.scores.JP?.percentFirst ?? 50, rightPct: result.scores.JP?.percentSecond ?? 50 },
+      ]
+
+      // 构建SVG（更现代的布局与信息密度）
+      const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#312e81"/>
+      <stop offset="30%" stop-color="#7c3aed"/>
+      <stop offset="70%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+
+    <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fafafa"/>
+    </linearGradient>
+
+    <linearGradient id="badgeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e40af"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="cardShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+
+    <pattern id="gridPattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.08"/>
+    </pattern>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="100%" height="100%" fill="url(#bgGradient)"/>
+  <rect width="100%" height="100%" fill="url(#gridPattern)"/>
+
+  <!-- 主卡片容器 -->
+  <rect x="40" y="40" width="${width - 80}" height="${height - 80}" rx="28" fill="url(#cardGradient)" filter="url(#cardShadow)"/>
+
+  <!-- 顶部信息条 -->
+  <g transform="translate(60, 80)">
+    <circle cx="24" cy="24" r="24" fill="url(#badgeGradient)"/>
+    <text x="24" y="30" font-family="Arial" font-size="18" fill="#fff" text-anchor="middle" font-weight="bold">${userName.charAt(0).toUpperCase()}</text>
+    <text x="70" y="22" font-family="PingFang SC,sans-serif" font-size="18" fill="#111827" font-weight="700">${userName}</text>
+    <rect x="70" y="30" width="98" height="22" rx="11" fill="#f3f4f6"/>
+    <text x="119" y="45" font-family="PingFang SC,sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">${testModeLabel}</text>
+    <rect x="180" y="30" width="98" height="22" rx="11" fill="#ecfeff" stroke="#06b6d4" stroke-width="1"/>
+    <text x="229" y="45" font-family="PingFang SC,sans-serif" font-size="11" fill="#0e7490" text-anchor="middle">${socialPref}</text>
+    <rect x="290" y="30" width="120" height="22" rx="11" fill="#f0fdf4" stroke="#10b981" stroke-width="1"/>
+    <text x="350" y="45" font-family="PingFang SC,sans-serif" font-size="11" fill="#065f46" text-anchor="middle">可信度 ${confidence}%</text>
+    <text x="${width - 120}" y="18" font-family="PingFang SC,sans-serif" font-size="12" fill="#6b7280" text-anchor="end">${new Date().toLocaleDateString()}</text>
+  </g>
+
+  <!-- 左侧主信息 -->
+  <g transform="translate(80, 150)">
+    <rect x="0" y="0" width="260" height="140" rx="20" fill="url(#badgeGradient)" filter="url(#glow)"/>
+    <text x="130" y="64" font-family="Arial Black,sans-serif" font-size="52" fill="#fff" text-anchor="middle" font-weight="900">${result.type}</text>
+    <text x="130" y="94" font-family="PingFang SC,sans-serif" font-size="16" fill="rgba(255,255,255,0.95)" text-anchor="middle" font-weight="600">${info?.name || ''}</text>
+    ${dominantDims.length > 0 ? `
+      <g transform="translate(20, 110)">
+        ${dominantDims.map((dim, i) => `
+          <circle cx="${i * 28 + 14}" cy="12" r="9" fill="rgba(255,255,255,0.32)"/>
+          <text x="${i * 28 + 14}" y="16" font-family="Arial,sans-serif" font-size="10" fill="#fff" text-anchor="middle" font-weight="bold">${dim}</text>
+        `).join('')}
+      </g>` : ''}
+
+    <!-- AI摘要 -->
+    <g transform="translate(0, 160)">
+      <rect x="0" y="0" width="520" height="86" rx="16" fill="#f8fafc" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="16" y="24" font-family="PingFang SC,sans-serif" font-size="12" fill="#64748b" font-weight="700">💡 AI 个性化分析</text>
+      <text x="16" y="46" font-family="PingFang SC,sans-serif" font-size="14" fill="#374151">
+        <tspan x="16" dy="0">${aiSummary}</tspan>
+      </text>
+      <text x="16" y="70" font-family="PingFang SC,sans-serif" font-size="11" fill="#9ca3af">基于资料、答题与结果综合生成</text>
+    </g>
+
+    <!-- 核心优势标签 -->
+    <g transform="translate(0, 262)">
+      <text x="0" y="14" font-family="PingFang SC,sans-serif" font-size="14" fill="#374151" font-weight="700">🌟 核心优势</text>
+      ${strengthTags.map((tag, i) => `
+        <g transform="translate(${i * 130}, 22)">
+          <rect x="0" y="0" width="120" height="28" rx="14" fill="${i === 0 ? '#ecfdf5' : i === 1 ? '#fff7ed' : '#fdf2f8'}" stroke="${i === 0 ? '#10b981' : i === 1 ? '#f59e0b' : '#ec4899'}" stroke-width="1"/>
+          <text x="60" y="19" font-family="PingFang SC,sans-serif" font-size="12" fill="${i === 0 ? '#065f46' : i === 1 ? '#7c2d12' : '#9d174d'}" text-anchor="middle">${tag}</text>
+        </g>
+      `).join('')}
+    </g>
+  </g>
+
+  <!-- 右侧分析模块 -->
+  <g transform="translate(620, 150)">
+    <rect x="0" y="0" width="460" height="340" rx="20" fill="#fafafa" stroke="#e5e7eb" stroke-width="1"/>
+    <text x="230" y="26" font-family="PingFang SC,sans-serif" font-size="16" fill="#111827" text-anchor="middle" font-weight="700">维度分析</text>
+
+    <!-- 简化雷达图 -->
+    <g transform="translate(230, 156)">
+      <g stroke="#d1d5db" stroke-width="1" fill="none">
+        <circle cx="0" cy="0" r="20"/>
+        <circle cx="0" cy="0" r="40"/>
+        <circle cx="0" cy="0" r="60"/>
+        <circle cx="0" cy="0" r="80"/>
+        <line x1="-80" y1="0" x2="80" y2="0"/>
+        <line x1="0" y1="-80" x2="0" y2="80"/>
+        <line x1="-56" y1="-56" x2="56" y2="56"/>
+        <line x1="-56" y1="56" x2="56" y2="-56"/>
+      </g>
+      ${dims.map((d, i) => {
+        const angle = (i * 90 - 90) * Math.PI / 180
+        const radius = (d.leftPct > d.rightPct ? d.leftPct : d.rightPct) * 0.8
+        const x = Math.cos(angle) * radius
+        const y = Math.sin(angle) * radius
+        return `
+          <circle cx="${x}" cy="${y}" r="4" fill="#3b82f6"/>
+        `
+      }).join('')}
+      <path d="M ${dims.map((d, i) => {
+        const angle = (i * 90 - 90) * Math.PI / 180
+        const radius = (d.leftPct > d.rightPct ? d.leftPct : d.rightPct) * 0.8
+        const x = Math.cos(angle) * radius
+        const y = Math.sin(angle) * radius
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
+      }).join(' ')} Z" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="2"/>
+    </g>
+
+    <!-- 维度条形图 -->
+    <g transform="translate(20, 292)">
+      ${dims.map((d, i) => `
+        <g transform="translate(0, ${i * 18})">
+          <text x="0" y="10" font-family="PingFang SC,sans-serif" font-size="12" fill="#6b7280">${d.key}</text>
+          <rect x="40" y="2" width="180" height="10" rx="5" fill="#ecfeff" stroke="#e5e7eb"/>
+          <rect x="40" y="2" width="${Math.max(6, Math.round(d.leftPct * 1.8))}" height="10" rx="5" fill="#38bdf8"/>
+          <rect x="220" y="2" width="180" height="10" rx="5" fill="#fdf2f8" stroke="#e5e7eb"/>
+          <rect x="${400 - Math.max(6, Math.round(d.rightPct * 1.8))}" y="2" width="${Math.max(6, Math.round(d.rightPct * 1.8))}" height="10" rx="5" fill="#f472b6"/>
+          <text x="230" y="11" font-family="PingFang SC,sans-serif" font-size="11" fill="#6b7280">${d.left} ${d.leftPct}%</text>
+          <text x="390" y="11" font-family="PingFang SC,sans-serif" font-size="11" fill="#6b7280" text-anchor="end">${d.rightPct}% ${d.right}</text>
+        </g>
+      `).join('')}
+    </g>
+  </g>
+
+  <!-- 底部品牌与链接 -->
+  <g transform="translate(80, 520)">
+    <text x="0" y="20" font-family="PingFang SC,sans-serif" font-size="18" fill="#ec4899" font-weight="800">Aurora MBTI</text>
+    <text x="0" y="40" font-family="PingFang SC,sans-serif" font-size="12" fill="#9ca3af">${info?.vibe || '探索你的独特风格'}</text>
+    <rect x="380" y="0" width="72" height="72" rx="10" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1"/>
+    <text x="416" y="26" font-family="PingFang SC,sans-serif" font-size="10" fill="#6b7280" text-anchor="middle">扫码体验</text>
+    <text x="416" y="44" font-family="PingFang SC,sans-serif" font-size="10" fill="#6b7280" text-anchor="middle">${new URL(baseUrl).host}</text>
+    <text x="${width - 120}" y="50" font-family="PingFang SC,sans-serif" font-size="10" fill="#9ca3af" text-anchor="end">v1.1</text>
+  </g>
+</svg>`
+
+      const blob = new Blob([svg], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      await new Promise<void>((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas')
+            canvas.width = width * scale
+            canvas.height = height * scale
+            const ctx = canvas.getContext('2d')!
+            ctx.scale(scale, scale)
+            ctx.fillStyle = '#fff'
+            ctx.fillRect(0, 0, width, height)
+            ctx.drawImage(img, 0, 0, width, height)
+            URL.revokeObjectURL(url)
+            canvas.toBlob((png) => {
+              if (!png) {
+                reject(new Error('PNG 生成失败'))
+                return
+              }
+              const date = new Date().toISOString().slice(0, 10)
+              const dl = document.createElement('a')
+              dl.href = URL.createObjectURL(png)
+              dl.download = `aurora-mbti-${result.type}-${date}.png`
+              document.body.appendChild(dl)
+              dl.click()
+              dl.remove()
+              resolve()
+            }, 'image/png')
+          } catch (err) {
+            reject(err as any)
+          }
+        }
+        img.onerror = () => reject(new Error('SVG 加载失败'))
+        img.src = url
+      })
+      toast({ title: '卡片已生成', description: '已下载社交分享卡片 PNG（高清）' })
+    } catch (e) {
+      console.error(e)
+      toast({ title: '生成失败', description: '生成社交卡片失败', variant: 'destructive' })
+    }
+  }
 
   const generateAIAnalysis = async () => {
     if (!result || !profile || isAnalyzing) return
@@ -483,6 +700,45 @@ export default function ResultPage() {
               </div>
             </div>
 
+            <div className="mt-6 rounded-2xl border p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-medium">维度雷达图</div>
+                <div className="text-xs text-muted-foreground">百分比越高越接近左侧字母</div>
+              </div>
+              <div className="flex flex-col items-center justify-center gap-2">
+                <RadarChart 
+                  scores={dims as any} 
+                  size={320}
+                  compareScores={compareEntry?.result?.scores as any}
+                />
+                {compareEntry && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-[rgba(236,72,153,0.6)] border border-fuchsia-500" /> 当前</span>
+                    <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-[rgba(16,185,129,0.4)] border border-emerald-500" /> 对比：{compareEntry.result.type}（{new Date(compareEntry.createdAt).toLocaleDateString()}）</span>
+                    <button className="underline" onClick={() => { localStorage.removeItem(COMPARE_KEY); setCompareEntry(null) }}>清除对比</button>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                  <Button variant="outline" size="sm" className="rounded-xl bg-transparent" onClick={saveToHistory}>
+                    保存到历史
+                    <History className="w-4 h-4 ml-2" />
+                  </Button>
+                  <Link href="/history">
+                    <Button variant="outline" size="sm" className="rounded-xl bg-transparent">
+                      历史记录
+                      <Users className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                  <Button variant="outline" size="sm" className="rounded-xl bg-transparent" onClick={exportJSON}>
+                    导出 JSON
+                    <FileJson className="w-4 h-4 ml-2" />
+                  </Button>
+                  
+                  
+                </div>
+              </div>
+            </div>
+
             <div className="mt-6 grid gap-4">
               {bars.map((b) => (
                 <div key={b.key} className="rounded-2xl border p-4">
@@ -551,29 +807,7 @@ export default function ResultPage() {
               </Card>
             )}
 
-            {/* 下一步 - 移到左侧 */}
-            <Card className="rounded-2xl mt-6">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-white", `bg-gradient-to-br ${gradient}`)}>
-                    <Target className="w-4 h-4" />
-                  </div>
-                  <div className="font-semibold">下一步</div>
-                </div>
-                <div className="grid gap-3">
-                  <Link href="/test" onClick={retake}>
-                    <Button variant="outline" className="w-full rounded-xl bg-transparent hover:bg-muted/50">
-                      🔄 再测一次
-                    </Button>
-                  </Link>
-                  <Link href="/">
-                    <Button className={cn("w-full rounded-xl text-white", `bg-gradient-to-br hover:opacity-90 ${gradient}`)}>
-                      🏠 返回首页
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+
           </section>
 
           <aside className="space-y-6">
@@ -809,6 +1043,29 @@ export default function ResultPage() {
               </Card>
             )}
 
+            {/* 下一步 - 移到右侧 */}
+            <Card className="rounded-2xl">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-white", `bg-gradient-to-br ${gradient}`)}>
+                    <Target className="w-4 h-4" />
+                  </div>
+                  <div className="font-semibold">下一步</div>
+                </div>
+                <div className="grid gap-3">
+                  <Link href="/test" onClick={retake}>
+                    <Button variant="outline" className="w-full rounded-xl bg-transparent hover:bg-muted/50">
+                      再测一次
+                    </Button>
+                  </Link>
+                  <Link href="/">
+                    <Button className={cn("w-full rounded-xl text-white", `bg-gradient-to-br hover:opacity-90 ${gradient}`)}>
+                      返回首页
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
 
           </aside>
         </div>

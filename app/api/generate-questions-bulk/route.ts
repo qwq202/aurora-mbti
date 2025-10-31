@@ -32,7 +32,7 @@ JSON格式：
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 180000) // 3分钟超时
     
-    let result
+    let result: any[] = []
     const maxRetries = 3
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -166,11 +166,13 @@ JSON格式：
       }
     }
     
+    const finalResult = result.length ? result : generateFallbackQuestions(questionCount, profileData)
+
     return NextResponse.json({
       success: true,
-      questions: result,
-      count: result.length,
-      message: `成功生成${result.length}道个性化题目`
+      questions: finalResult,
+      count: finalResult.length,
+      message: `成功生成${finalResult.length}道个性化题目`
     })
     
   } catch (error: any) {

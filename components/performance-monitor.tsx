@@ -18,7 +18,7 @@ export function PerformanceMonitor() {
 
     const observer = new PerformanceObserver((list) => {
       const metrics: PerformanceMetrics = {}
-      
+
       for (const entry of list.getEntries()) {
         switch (entry.entryType) {
           case 'paint':
@@ -29,9 +29,13 @@ export function PerformanceMonitor() {
           case 'largest-contentful-paint':
             metrics.lcp = entry.startTime
             break
-          case 'first-input':
-            metrics.fid = entry.processingStart - entry.startTime
+          case 'first-input': {
+            const eventEntry = entry as PerformanceEventTiming
+            if (typeof eventEntry.processingStart === 'number') {
+              metrics.fid = eventEntry.processingStart - eventEntry.startTime
+            }
             break
+          }
           case 'layout-shift':
             if (!(entry as any).hadRecentInput) {
               metrics.cls = (metrics.cls || 0) + (entry as any).value
@@ -82,12 +86,12 @@ export function useWebVitals() {
     // 监控页面卸载时间
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        const metrics = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
+        const metrics = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
         if (metrics) {
           console.log('Page Performance Summary:', {
             domContentLoaded: metrics.domContentLoadedEventEnd - metrics.domContentLoadedEventStart,
             loadComplete: metrics.loadEventEnd - metrics.loadEventStart,
-            totalTime: metrics.loadEventEnd - metrics.navigationStart,
+            totalTime: metrics.loadEventEnd - metrics.startTime,
           })
         }
       }

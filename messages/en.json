@@ -1,0 +1,525 @@
+{
+  "common": {
+    "startTest": "Start Test",
+    "personalityTypes": "Personality Types",
+    "history": "History",
+    "profile": "Profile",
+    "about": "About",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "saved": "Saved",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "continue": "Continue",
+    "skip": "Skip",
+    "proceed": "Proceed",
+    "reset": "Reset",
+    "clear": "Clear",
+    "language": "Language",
+    "languageOptions": {
+      "zh": "中文",
+      "en": "EN"
+    },
+    "tags": {
+      "auto": "AUTO",
+      "reset": "RESET",
+      "resetAll": "RESET ALL",
+      "continue": "CONTINUE",
+      "cancel": "CANCEL",
+      "proceed": "PROCEED",
+      "skip": "SKIP"
+    }
+  },
+  "header": {
+    "nav": {
+      "types": "Personality Types",
+      "test": "Start Test",
+      "history": "History",
+      "profile": "Profile"
+    },
+    "github": "GitHub Repository"
+  },
+  "footer": {
+    "copyright": "© 2026 AURORA MBTI · AI-Powered Personality Analysis Platform",
+    "tagline": "Discover your true self through AI-driven scientific analysis, optimizing your career and life path.",
+    "taglineShort": "Discover your true self through AI-driven scientific analysis.",
+    "explore": "Explore",
+    "resources": "Resources",
+    "docs": "Documentation",
+    "madeWith": "Made with ❤️ for self-discovery",
+    "links": {
+      "types": "Personality Types",
+      "history": "My History",
+      "about": "About"
+    }
+  },
+  "home": {
+    "hero": {
+      "subtitle": "Aurora MBTI / AI-Powered Personality Analysis",
+      "title": "Discover Your",
+      "titleHighlight": "Personality Type",
+      "description": "Gain deep insights into your personality traits, strengths, and growth opportunities through AI-driven intelligent analysis.",
+      "cta": "Start Test"
+    },
+    "methodology": {
+      "label": "01 / Four-Dimensional Personality Theory",
+      "title": "16 Personality Types",
+      "description": "Based on Jungian psychology theory with four pairs of dimensions—Ni-Se, Ne-Si, Ti-Fe, Te-Fi—deriving 16 distinct personality types from INTJ to ESFP.",
+      "link": "View All Types →"
+    },
+    "technology": {
+      "label": "02 / AI Analysis",
+      "title": "Deep Insights",
+      "description": "Through advanced AI technology, we provide personalized career advice, interpersonal insights, and personal growth directions."
+    },
+    "features": {
+      "scientific": {
+        "title": "Scientifically Rigorous",
+        "description": "Based on Jungian psychology and psychometric principles."
+      },
+      "personalized": {
+        "title": "Personalized Experience",
+        "description": "Customized analysis based on your background information."
+      },
+      "intelligent": {
+        "title": "Intelligent Insights",
+        "description": "Combining AI technology to generate deep personality insights."
+      }
+    },
+    "cta": {
+      "title": "Ready to Discover Your True Self?",
+      "description": "5,420+ users have discovered their unique strengths through Aurora MBTI.",
+      "button": "Start Free Test"
+    }
+  },
+  "profile": {
+    "hero": {
+      "label": "Step 01 / Personal Profile",
+      "title": "Tell Us",
+      "titleHighlight": "About You",
+      "description": "We'll use this information to personalize your AI analysis and provide more accurate personality assessments and recommendations."
+    },
+    "basicInfo": {
+      "label": "01 / Basic Information",
+      "title": "Your Background",
+      "name": "Name *",
+      "namePlaceholder": "Enter your name",
+      "gender": "Gender *",
+      "genderPlaceholder": "Select gender",
+      "genderOptions": {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other",
+        "preferNotToSay": "Prefer not to say"
+      },
+      "age": "Age *",
+      "agePlaceholder": "18 years and above",
+      "ageSuffix": " years old",
+      "occupation": "Occupation *",
+      "occupationPlaceholder": "Select occupation",
+      "occupationOptions": {
+        "student": "Student",
+        "highSchool": "High School Student",
+        "middleSchool": "Middle School Student",
+        "elementary": "Elementary Student",
+        "engineer": "Engineer",
+        "designer": "Designer",
+        "marketing": "Marketing",
+        "sales": "Sales/Marketing",
+        "hr": "Human Resources/HR",
+        "management": "Management",
+        "consultant": "Consultant",
+        "other": "Other"
+      },
+      "education": "Education Level",
+      "educationPlaceholder": "Select education level",
+      "educationOptions": {
+        "juniorHigh": "Junior High and Below",
+        "highSchool": "High School/Technical School",
+        "college": "Associate Degree",
+        "bachelor": "Bachelor's Degree",
+        "master": "Master's Degree",
+        "phd": "Doctorate",
+        "preferNotToSay": "Prefer not to say"
+      },
+      "relationship": "Relationship Status",
+      "relationshipPlaceholder": "Select relationship status",
+      "relationshipOptions": {
+        "single": "Single",
+        "dating": "In a Relationship",
+        "married": "Married",
+        "other": "Other",
+        "preferNotToSay": "Prefer not to say"
+      }
+    },
+    "preferences": {
+      "label": "02 / Personal Preferences",
+      "title": "Understand Your Style",
+      "interests": "Interests",
+      "interestsPlaceholder": "Describe your interests, e.g., programming, reading, travel (optional)",
+      "socialPreference": "Social Preference",
+      "socialPreferencePlaceholder": "Select social preference",
+      "socialPreferenceOptions": {
+        "quiet": "Quiet/Introverted",
+        "social": "Outgoing/Social",
+        "balanced": "Balanced"
+      },
+      "stressLevel": "Stress Level",
+      "stressLevelPlaceholder": "Select current stress level",
+      "stressLevelOptions": {
+        "low": "Low/Relaxed",
+        "medium": "Medium/Normal",
+        "high": "High/Busy"
+      },
+      "workStyle": "Work Style",
+      "workStylePlaceholder": "Select work style",
+      "workStyleOptions": {
+        "individual": "Independent Work",
+        "team": "Team Collaboration",
+        "mixed": "Mixed Mode"
+      }
+    },
+    "privacy": {
+      "title": "Your Privacy Matters",
+      "description": "We only use your information to improve your analysis experience and will not share it with third parties.",
+      "localStorage": "All data is stored locally in your browser. We do not upload or save any of your personal information.",
+      "sensitiveInfo": "Sensitive information includes: name, age, gender, occupation, education, relationship status, and other personal data.",
+      "control": "You can clear locally stored data at any time, giving you complete control over your personal information."
+    },
+    "actions": {
+      "save": "Save",
+      "saved": "✓ Saved",
+      "nextStep": "Next Step: Start Test"
+    }
+  },
+  "testMode": {
+    "hero": {
+      "label": "01 / Select Test Mode",
+      "title": "Customize",
+      "titleHighlight": "Your Test",
+      "description": "Hello {name}, please select the test mode that suits you. AI will generate personalized questions based on your profile.",
+      "back": "Back"
+    },
+    "resume": {
+      "title": "Incomplete Test Detected",
+      "description": "Answered {answered} / {total} questions ({mode})",
+      "modeAI": "AI Mode",
+      "modeStandard": "Standard Mode",
+      "continue": "Continue Test",
+      "reset": "Abandon and Reset"
+    },
+    "generating": {
+      "title": "AI Question Generation",
+      "progress": "{percent}% ({current}/{total})",
+      "description": "Analyzing potential personality dimensions based on your personal profile..."
+    },
+    "modes": {
+      "ai30": {
+        "title": "AI Quick Mode",
+        "count": "30",
+        "time": "5-10min",
+        "description": "Core questions generated by AI for quick personality profiling."
+      },
+      "ai60": {
+        "title": "AI Deep Mode",
+        "count": "60",
+        "time": "15-20min",
+        "description": "Balanced speed and precision, AI delves deep into your profession and background."
+      },
+      "ai120": {
+        "title": "AI Ultimate Mode",
+        "count": "120",
+        "time": "25-35min",
+        "description": "Most comprehensive AI analysis with extremely high precision dimension assessment."
+      },
+      "standard": {
+        "title": "Standard Mode",
+        "description": "Use classic MBTI question set"
+      }
+    },
+    "selected": "SELECTED",
+    "errors": {
+      "aiGeneration": "Failed to generate AI questions"
+    },
+    "actions": {
+      "startGenerating": "Start Generating Questions",
+      "initializing": "Initializing...",
+      "note": "AI will take approximately 1-2 minutes to generate personalized questions"
+    },
+    "followup": {
+      "prompt": {
+        "title": "Add Some Details?",
+        "description": "AI would like to learn more about you to generate more precise questions. This will only take 1 minute.",
+        "skip": "Skip",
+        "proceed": "Proceed"
+      },
+      "form": {
+        "title": "AI Follow-up",
+        "description": "Please briefly answer the following questions for a more accurate profile.",
+        "required": "Required",
+        "shortPlaceholder": "Brief answer...",
+        "longPlaceholder": "Please describe in detail...",
+        "skip": "Generate Directly",
+        "submit": "Submit and Generate"
+      }
+    },
+    "resetConfirm": {
+      "title": "Reset Progress",
+      "description": "Are you sure you want to reset the current test progress? All answered questions will be lost.",
+      "confirm": "Confirm Reset",
+      "cancel": "Cancel"
+    }
+  },
+  "test": {
+    "hero": {
+      "label": "01 / Test in Progress",
+      "progress": "{percent}%",
+      "progressLabel": "Completion Progress",
+      "questionInfo": "Question {current} / {total} {mode}",
+      "modeStandard": "(Standard Mode)",
+      "modeAI": "(AI Enhanced Mode)",
+      "quickFill": "Quick Fill",
+      "reset": "Reset Progress"
+    },
+    "questionLabel": "QUESTION {current} / {total}",
+    "likert": {
+      "labels": [
+        "Strongly Disagree",
+        "Disagree",
+        "Slightly Disagree",
+        "Neutral",
+        "Slightly Agree",
+        "Agree",
+        "Strongly Agree"
+      ]
+    },
+    "guidelines": {
+      "label": "// GUIDELINES",
+      "text": "Please answer based on your first reaction; there are no right or wrong answers.\nStay honest, as this will help you get the most accurate MBTI personality profile."
+    },
+    "actions": {
+      "previous": "Previous",
+      "next": "Next",
+      "submit": "Submit Results"
+    },
+    "dialogs": {
+      "repeat": {
+        "title": "Repeated Selection Detected",
+        "description": "You have selected the same answer for 5 consecutive questions. Please ensure you are answering based on your true thoughts, not just to finish quickly.",
+        "continue": "Continue"
+      },
+      "quickFill": {
+        "title": "Quick Fill Neutral Options?",
+        "description": "Are you sure you want to fill all remaining questions with 'Neutral'? This will significantly reduce the accuracy of the results.",
+        "cancel": "Cancel",
+        "proceed": "Confirm Fill"
+      },
+      "reset": {
+        "title": "Reset Test",
+        "description": "Are you sure you want to reset all current progress?",
+        "confirm": "Confirm Reset",
+        "cancel": "Cancel"
+      }
+    }
+  },
+  "result": {
+    "hero": {
+      "label": "01 / Your Results",
+      "saveToHistory": "Save to History",
+      "share": "Share Results"
+    },
+    "dimensions": {
+      "label": "// Personality Dimension Analysis",
+      "ei": {
+        "title": "Extraversion",
+        "left": "E Extraverted",
+        "right": "I Introverted"
+      },
+      "sn": {
+        "title": "Perception",
+        "left": "S Sensing",
+        "right": "N Intuitive"
+      },
+      "tf": {
+        "title": "Judgment",
+        "left": "T Thinking",
+        "right": "F Feeling"
+      },
+      "jp": {
+        "title": "Lifestyle",
+        "left": "J Judging",
+        "right": "P Perceiving"
+      }
+    },
+    "radar": {
+      "label": "// Personality Radar Chart",
+      "current": "Your Results",
+      "compare": "{type}"
+    },
+    "aiAnalysis": {
+      "label": "AI Personality Analysis",
+      "generate": "Generate AI Analysis",
+      "generating": "🤖 AI is analyzing...",
+      "summary": {
+        "label": "// Personality Summary"
+      },
+      "career": {
+        "label": "// Career Development"
+      },
+      "growth": {
+        "label": "// Personal Growth"
+      },
+      "actions": {
+        "regenerate": "Regenerate Analysis",
+        "copy": "Copy"
+      },
+      "regenerateDialog": {
+        "title": "Regenerate Analysis",
+        "description": "About to regenerate your personality analysis using the latest AI model. This will overwrite the previous analysis results.",
+        "confirm": "Confirm Regeneration",
+        "cancel": "Cancel"
+      }
+    },
+    "traits": {
+      "label": "// Personality Traits",
+      "strengths": "Strengths",
+      "communication": "Communication Style"
+    },
+    "cta": {
+      "title": "Want to Test Again?",
+      "retest": "Retake Test",
+      "home": "Back to Home"
+    },
+    "copied": "Copied to Clipboard"
+  },
+  "history": {
+    "hero": {
+      "label": "01 / Test History",
+      "title": "Your Journey",
+      "titleHighlight": "At a Glance",
+      "description": "View all your past MBTI test results, compare your personality changes, and track your growth.",
+      "clearAll": "Clear History"
+    },
+    "empty": {
+      "title": "No Test Records Yet",
+      "description": "Start your first MBTI personality test and record your journey of discovery.",
+      "cta": "Start Test"
+    },
+    "entry": {
+      "modeAI": "AI Generated",
+      "modeStandard": "Standard Test",
+      "compare": "Use for Comparison",
+      "delete": "Delete"
+    },
+    "cta": {
+      "title": "Continue Exploring Your Personality",
+      "description": "Every test is an opportunity for self-awareness",
+      "button": "Start New Test"
+    },
+    "clearConfirm": {
+      "title": "Clear History",
+      "description": "This will delete all test records. This action cannot be undone.",
+      "confirm": "Confirm Clear",
+      "cancel": "Cancel"
+    },
+    "saved": "Saved to History",
+    "deleted": "Deleted",
+    "cleared": "History cleared",
+    "clearFailed": "Failed to clear history",
+    "compareFailed": "Failed to set comparison",
+    "compareSet": "Set as comparison: {type}"
+  },
+  "types": {
+    "hero": {
+      "label": "01 / Personality Type Library",
+      "title": "16",
+      "titleHighlight": "Personality Profiles",
+      "description": "Deep dive into the core characteristics, strengths, and representative figures of each personality type. Explore the diversity of human behavior."
+    },
+    "groupLabel": "Group {index} / {code}",
+    "groups": {
+      "nt": {
+        "title": "Rationals",
+        "code": "NT",
+        "description": "Strategic, curious, value objectivity and logic. They are natural thinkers and leaders."
+      },
+      "nf": {
+        "title": "Idealists",
+        "code": "NF",
+        "description": "Compassionate, seek meaning, value personal growth. They are profound insights and inspiring individuals."
+      },
+      "sj": {
+        "title": "Guardians",
+        "code": "SJ",
+        "description": "Practical, stable, value order and tradition. They are the foundation of society, reliable executors."
+      },
+      "sp": {
+        "title": "Explorers",
+        "code": "SP",
+        "description": "Flexible, spontaneous, value sensory experiences. They are action-oriented, good at handling emergencies and enjoying life."
+      },
+      "representatives": "Representative Figures"
+    },
+    "cta": {
+      "title": "Ready to Discover",
+      "titleHighlight": "Your Type?",
+      "description": "Get your own personalized analysis through AI-driven in-depth testing.",
+      "button": "Start Test Now"
+    }
+  },
+  "about": {
+    "hero": {
+      "label": "01 / Behind the Scenes",
+      "title": "Acknowledgments",
+      "titleHighlight": "AI Teachers",
+      "description": "This site was collaboratively created by the following AI teachers. From architectural logic to visual aesthetics, every line of code and pixel embodies their wisdom. We express our sincerest gratitude here.",
+      "credit": "This page was created by Gemini 3.0 Flash Teacher",
+      "github": "GitHub Repo"
+    },
+    "contributions": {
+      "label": "02 / Teaching and Guidance",
+      "title": "Wisdom of AI Mentors",
+      "description": "Grateful for the guidance and contributions of various AI teachers at different stages, turning this site from a concept into reality.",
+      "initial": {
+        "title": "Initial Project Framework",
+        "description": "The initial pages and basic skeleton of the project were inspired and supported by v0's generation capabilities."
+      },
+      "mvp": {
+        "title": "MVP Models",
+        "description": "The most outstanding top models (Most Valuable Players), jointly honored by GPT 5.2 Codex, Claude 4.5 Opus, and Gemini 3 Pro."
+      },
+      "core": {
+        "title": "Core Module Design",
+        "description": "Core modules and key interaction solutions mainly come from Claude 4 Sonnet in Windsurf."
+      },
+      "ui": {
+        "title": "UI Design",
+        "description": "Overall UI visuals and layout optimization come from suggestions and iterations by Gemini 3 Flash and Gemini 3 Pro."
+      },
+      "refactor": {
+        "title": "Project Late-Stage Refactoring",
+        "description": "Late-stage structure organization and refactoring were completed jointly by Codex CLI, Claude Code, and Claude 4.5 series and GPT 5.2 Codex in Cursor."
+      }
+    },
+    "matrix": {
+      "label": "03 / Complete List",
+      "title": "AI Matrix",
+      "description": "Complete technology ecosystem supporting Aurora MBTI's continuous evolution.",
+      "quote": "The boundaries of tools are the boundaries of thought. We eliminate boundaries here.",
+      "quoteLabel": "Production Message",
+      "models": "Model Library",
+      "tools": "Tool Chain",
+      "modelsCount": "{count} MODELS",
+      "toolsCount": "{count} TOOLS"
+    }
+  }
+}

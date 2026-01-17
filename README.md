@@ -70,7 +70,4 @@ docker run -d -p 3000:3000 --name aurora-mbti \
 
 ## 截图
 
-<img width="1380" height="764" alt="home" src="https://github.com/user-attachments/assets/36339887-5553-41bc-a1bc-e257036c4f8d" />
-<img width="1380" height="762" alt="ai-1" src="https://github.com/user-attachments/assets/7d66c9b0-b94e-47ec-bc26-010d41276101" />
-<img width="1380" height="762" alt="ai-2" src="https://github.com/user-attachments/assets/5f44c9a0-06f4-4872-bd51-6ac4368d134e" />
-<img width="1380" height="768" alt="result" src="https://github.com/user-attachments/assets/948525d8-9a1a-47eb-9f23-a5fe49d2912a" />
+![screenshot](image/image-20260117224405556.png)

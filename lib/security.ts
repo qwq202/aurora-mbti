@@ -84,7 +84,7 @@ export function validateProfile(profile: unknown): ValidationResult<UserProfile>
   }
   
   // 
-  const validGenders = ['male', 'female', 'other']
+  const validGenders = ['male', 'female', 'other', 'preferNotToSay']
   if (!validGenders.includes(p.gender as string)) {
     return { valid: false, error: '' }
   }

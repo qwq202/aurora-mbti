@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateProfile, SECURITY_ERRORS } from '@/lib/security'
 import { type UserProfile } from '@/lib/mbti'
-import { assertAIConfig, completeAIText, resolveAIConfig, type AIResolvedConfig } from '@/lib/ai-provider'
+import { assertAIConfig, completeAIText, resolveAIConfig, type AIResolvedConfig, type AIResponseFormat } from '@/lib/ai-provider'
 
 type FollowupQuestion = {
   id: string
@@ -321,10 +321,20 @@ async function invokeOpenAI(payload: Record<string, unknown>, strategy: 'json_sc
 
   let content = ''
   try {
+    let responseFormat: AIResponseFormat | undefined
+    if (payload.response_format && typeof payload.response_format === 'object') {
+      const format = payload.response_format as Record<string, unknown>
+      if (format.type === 'json_object') {
+        responseFormat = { type: 'json_object' }
+      } else if (format.type === 'json_schema' && format.json_schema && typeof format.json_schema === 'object') {
+        responseFormat = { type: 'json_schema', json_schema: format.json_schema as Record<string, unknown> }
+      }
+    }
+
     content = await completeAIText(aiConfig, {
       messages: (payload.messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>) || [],
       temperature: typeof payload.temperature === 'number' ? payload.temperature : 0.3,
-      responseFormat: payload.response_format as { type: 'json_schema' | 'json_object'; json_schema?: Record<string, unknown> }
+      responseFormat
     })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)

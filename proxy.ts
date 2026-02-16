@@ -47,9 +47,30 @@ const securityHeaders = [
 
 const intlMiddleware = createMiddleware(routing)
 
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean)
+
+function resolveAllowedOrigin(request: NextRequest): string | null {
+  const origin = request.headers.get('origin')
+  if (!origin) return null
+
+  if (origin === request.nextUrl.origin) {
+    return origin
+  }
+
+  if (allowedOrigins.includes(origin)) {
+    return origin
+  }
+
+  return null
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   let rateLimitHeaders: Record<string, string> = {}
+  const allowedOrigin = resolveAllowedOrigin(request)
   
   // 1. API
   if (pathname.startsWith('/api/')) {
@@ -73,7 +94,9 @@ export function proxy(request: NextRequest) {
   }
   
   // 2. 
-  const response = intlMiddleware(request) ?? NextResponse.next()
+  const response = pathname.startsWith('/api/')
+    ? NextResponse.next()
+    : (intlMiddleware(request) ?? NextResponse.next())
   
   // 
   securityHeaders.forEach(({ key, value }) => {
@@ -100,11 +123,30 @@ export function proxy(request: NextRequest) {
         )
       }
     }
-    
-    // CORS
-    response.headers.set('Access-Control-Allow-Origin', '*')
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+
+    if (request.method === 'OPTIONS') {
+      const preflightResponse = new NextResponse(null, { status: 204 })
+      securityHeaders.forEach(({ key, value }) => {
+        preflightResponse.headers.set(key, value)
+      })
+      if (allowedOrigin) {
+        preflightResponse.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+        preflightResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        preflightResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+        preflightResponse.headers.set('Vary', 'Origin')
+      }
+      Object.entries(rateLimitHeaders).forEach(([key, value]) => {
+        preflightResponse.headers.set(key, value)
+      })
+      return preflightResponse
+    }
+
+    if (allowedOrigin) {
+      response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+      response.headers.set('Vary', 'Origin')
+    }
   }
 
   // 

@@ -184,11 +184,14 @@ ${questionCount}`
               debugLog('function_call.arguments:', cleaned.length)
               
               const parsedArgs = JSON.parse(cleaned) as { questions?: Question[] } | Question[]
+              const parsedQuestions = (typeof parsedArgs === 'object' && parsedArgs !== null && 'questions' in parsedArgs)
+                ? parsedArgs.questions
+                : undefined
               // parsedArgs{questions: [...]}
               
               //  Schema
               await finalParseAndValidate(
-                JSON.stringify(parsedArgs.questions || parsedArgs),
+                JSON.stringify(parsedQuestions || parsedArgs),
                 controller,
                 encoder,
                 questionCount
@@ -457,7 +460,7 @@ ${questionCount}`
                 id: String(currentId++),
                 text: templates[templateIndex],
                 dimension: dim,
-                agree: dim[0] // E, S, T, J
+                agree: dim[0] as Question['agree'] // E, S, T, J
               })
             }
           }
@@ -498,9 +501,6 @@ ${questionCount}`
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Connection': 'keep-alive',
         'X-Accel-Buffering': 'no', // Nginx
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         //  HTTP/2
         'Transfer-Encoding': 'chunked',
         'X-Content-Type-Options': 'nosniff',

@@ -8,7 +8,7 @@ type NDJSONQuestion = {
 }
 
 type NDJSONSSEEvent = {
-  type: 'start' | 'progress' | 'question' | 'complete' | 'error'
+  type: 'start' | 'progress' | 'question' | 'complete' | 'success' | 'error'
   message?: string
   total?: number
   batchIndex?: number
@@ -19,6 +19,7 @@ type NDJSONSSEEvent = {
   progress?: number
   index?: number
   error?: string
+  suggestion?: string
 }
 
 //  NDJSONAPI - 
@@ -184,9 +185,6 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'Content-Type',
       }
     })
 

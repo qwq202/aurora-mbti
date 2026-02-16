@@ -153,9 +153,12 @@ JSON
               console.log('function_call.arguments:', cleaned.length)
               
               const parsedArgs = JSON.parse(cleaned) as { analysis?: AIAnalysis } | AIAnalysis
+              const parsedAnalysis = (typeof parsedArgs === 'object' && parsedArgs !== null && 'analysis' in parsedArgs)
+                ? parsedArgs.analysis
+                : undefined
               
               await finalParseAndValidate(
-                JSON.stringify(parsedArgs.analysis || parsedArgs),
+                JSON.stringify(parsedAnalysis || parsedArgs),
                 controller,
                 encoder
               )
@@ -299,7 +302,7 @@ JSON
     function validateAnalysisStructure(analysis: AIAnalysis): boolean {
       if (!analysis || typeof analysis !== 'object') return false
       
-      const requiredFields = [
+      const requiredFields: Array<keyof AIAnalysis> = [
         'summary',
         'strengths', 
         'challenges',
@@ -311,15 +314,16 @@ JSON
       
       // 
       for (const field of requiredFields) {
-        if (!analysis[field]) return false
+        const value = analysis[field]
+        if (!value) return false
         
         // 
         if (['strengths', 'challenges', 'recommendations'].includes(field)) {
-          if (!Array.isArray(analysis[field]) || analysis[field].length === 0) return false
+          if (!Array.isArray(value) || value.length === 0) return false
         }
         
         // 
-        if (typeof analysis[field] === 'string' && analysis[field].trim().length < 10) return false
+        if (typeof value === 'string' && value.trim().length < 10) return false
       }
       
       return true

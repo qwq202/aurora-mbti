@@ -1,5 +1,5 @@
 # 使用官方Node.js运行时作为父镜像
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # 安装依赖阶段
 FROM base AS deps

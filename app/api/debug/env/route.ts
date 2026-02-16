@@ -6,7 +6,7 @@ import { debugError, debugLog } from '@/lib/logging'
  */
 export async function GET(request: NextRequest) {
   // 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' || process.env.DEBUG_API_LOGS !== 'true') {
     return Response.json({ error: '' }, { status: 403 })
   }
 
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const envCheck = {
     NODE_ENV: process.env.NODE_ENV,
     // OpenAI 
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? ' (' + process.env.OPENAI_API_KEY.substring(0, 10) + '...)' : '',
+    OPENAI_API_KEY_SET: !!process.env.OPENAI_API_KEY,
     OPENAI_API_URL: process.env.OPENAI_API_URL || '',
     OPENAI_MODEL: process.env.OPENAI_MODEL || '',
     // 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   // 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' || process.env.DEBUG_API_LOGS !== 'true') {
     return Response.json({ error: '' }, { status: 403 })
   }
 
@@ -94,8 +94,7 @@ export async function POST(request: NextRequest) {
       return Response.json({
         status: 'error',
         error: `OpenAI API: ${response.status}`,
-        details: responseText,
-        response_headers: Object.fromEntries(response.headers.entries())
+        details: responseText
       }, { status: 500 })
     }
 
@@ -117,8 +116,7 @@ export async function POST(request: NextRequest) {
     
     return Response.json({
       status: 'error',
-      error: error instanceof Error ? error.message : '',
-      stack: error instanceof Error ? error.stack : undefined
+      error: error instanceof Error ? error.message : ''
     }, { status: 500 })
   }
 }

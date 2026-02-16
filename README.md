@@ -41,6 +41,12 @@ pnpm dev
 
 打开：`http://localhost:3000`
 
+4) 本地检查（类型检查 + 构建）
+```bash
+pnpm lint
+pnpm build
+```
+
 ## 环境变量（OpenAI Compatible / 多提供方）
 
 项目支持多提供方：OpenAI（Chat Completions / Responses）、Gemini、DeepSeek、OpenRouter、火山引擎（豆包）、阿里百炼（DashScope）、NewAPI、硅基流动、Ollama、Anthropic、Groq。  
@@ -52,6 +58,8 @@ pnpm dev
 - `AI_BASE_URL`：覆盖默认 Base URL（可留空）
 - `AI_API_KEY`：统一 API Key（可留空，优先级低于提供方专用 Key）
 - `AI_MODEL`：统一模型名（可留空）
+- `CORS_ALLOWED_ORIGINS`：允许跨域来源（逗号分隔，默认仅同源）
+- `DEBUG_API_LOGS`：调试日志开关（仅开发环境建议开启，默认关闭）
 
 当 `AI_PROVIDER` 设置后，服务端会按该提供方读取**专用变量**并作为默认值。  
 优先级：`AI_*`（显式） > 专用变量（如 `OPENROUTER_API_KEY`）> 内置默认值。
@@ -196,23 +204,64 @@ NEWAPI_BASE_URL=
 OLLAMA_BASE_URL=
 ANTHROPIC_BASE_URL=
 GEMINI_BASE_URL=
+CORS_ALLOWED_ORIGINS=
+DEBUG_API_LOGS=false
 ```
 
 ## API 路由
 
-- `GET /api/health`：健康检查（是否配置了 OpenAI 环境变量）
-- `GET /api/debug/env`：调试环境变量（开发用）
+- `GET /api/health`：健康检查（AI 提供方与基础运行状态）
+- `GET /api/debug/env`：调试环境变量（仅 `NODE_ENV!=production` 且 `DEBUG_API_LOGS=true`）
 - `POST /api/generate-questions-*`：生成题目（结构化/流式/更稳健版本）
 - `POST /api/generate-analysis-*`：生成分析（结构化/流式/更稳健版本）
 - `POST /api/generate-profile-followups`：基于用户档案生成追问
 
-## Docker（可选）
+## Docker（本地）
 
 ```bash
 docker build -t aurora-mbti .
 docker run -d -p 3000:3000 --name aurora-mbti \
   --env-file .env.local \
   aurora-mbti
+```
+
+## Docker（linux/amd64 构建与推送）
+
+目标镜像：`qwq202/aurora-mbti-latest`
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t qwq202/aurora-mbti-latest:latest \
+  --push .
+```
+
+## 云端部署（镜像方式）
+
+```bash
+docker pull qwq202/aurora-mbti-latest:latest
+docker stop aurora-mbti || true
+docker rm aurora-mbti || true
+docker run -d --name aurora-mbti \
+  -p 3000:3000 \
+  --env-file .env.local \
+  --restart unless-stopped \
+  qwq202/aurora-mbti-latest:latest
+```
+
+## GitHub Release（v1.0.0）
+
+```bash
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+gh release create v1.0.0 \
+  --title "1.0" \
+  --notes-file RELEASE_NOTES.md
+```
+
+如果不单独维护 `RELEASE_NOTES.md`，可改为：
+```bash
+gh release create v1.0.0 --title "1.0" --generate-notes
 ```
 
 ## 截图
@@ -222,4 +271,3 @@ docker run -d -p 3000:3000 --name aurora-mbti \
 <img width="2807" height="1513" alt="image" src="https://github.com/user-attachments/assets/83492f06-48ad-4ebc-80ac-fb8b0a01d7ad" />
 <img width="2807" height="1515" alt="image" src="https://github.com/user-attachments/assets/c3ab2bdb-528a-4f71-95b2-4cff64af41e5" />
 <img width="2804" height="1511" alt="image" src="https://github.com/user-attachments/assets/a7727516-a8c5-40ad-9024-0fa70e511117" />
-

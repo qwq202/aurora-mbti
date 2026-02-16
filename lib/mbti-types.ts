@@ -5,7 +5,7 @@ export type Likert = 1 | 2 | 3 | 4 | 5 | 6 | 7
 export type UserProfile = {
   name: string
   age: number
-  gender: "male" | "female" | "other" | ""
+  gender: "male" | "female" | "other" | "preferNotToSay" | ""
   occupation: string
   education: "junior_high" | "high_school" | "college" | "bachelor" | "master" | "phd" | ""
   relationship: "single" | "dating" | "married" | "other" | ""

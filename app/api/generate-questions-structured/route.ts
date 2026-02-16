@@ -93,7 +93,12 @@ export async function POST(request: NextRequest) {
 
 ##   (${batchNumber})
 ****
-${safeExistingQuestions.map((q: {text: string, dimension: string}, index: number) => `${index + 1}. [${q.dimension}] ${q.text}`).join('\n')}
+${safeExistingQuestions
+  .map((q, index) => {
+    const question = q as { text?: unknown; dimension?: unknown }
+    return `${index + 1}. [${typeof question.dimension === 'string' ? question.dimension : 'EI'}] ${typeof question.text === 'string' ? question.text : ''}`
+  })
+  .join('\n')}
 
 ****
 - 

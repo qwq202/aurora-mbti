@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { type Answers, type MbtiResult, type Question, type UserProfile } from '@/lib/mbti'
+import { validateAnalysisAPI } from '@/lib/api-validation'
+import { SECURITY_ERRORS } from '@/lib/security'
 import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
 
 // AIAPI - token
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as {
-      profile: UserProfile
-      answers: Answers
-      questions: Question[]
-      mbtiResult: MbtiResult
+    const validationResult = await validateAnalysisAPI(request)
+    if ('status' in validationResult) {
+      return validationResult
     }
-    const { profile, answers, questions, mbtiResult } = body
+    if (!validationResult.valid) {
+      return Response.json(
+        { error: SECURITY_ERRORS.INVALID_INPUT },
+        { status: 400 }
+      )
+    }
+
+    const { profile, answers, questions, mbtiResult } = validationResult.data
     
     console.log(`AI: ${mbtiResult.type}`)
     

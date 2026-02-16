@@ -5,14 +5,13 @@ import { useLocale, useTranslations } from "next-intl"
 import { Link } from "@/i18n/routing"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
-import { FadeIn, SlideUp, SlideLeft, SlideRight } from "@/components/scroll-reveal"
+import { FadeIn, SlideUp } from "@/components/scroll-reveal"
 import { formatScoresForShare, type MbtiResult, type UserProfile, type Answers, type Question, typeDisplayInfo } from "@/lib/mbti"
-import { getWorkEnvironment, getCommunicationStyle, getPotentialChallenges, getPracticalTips, type HistoryEntry, RESULT_KEY, ANSWERS_KEY, HISTORY_KEY, COMPARE_KEY } from "@/lib/result-helpers"
-import { AI_ANALYSIS_KEY, AI_QUESTIONS_KEY, PROFILE_KEY, TEST_MODE_KEY } from "@/lib/constants"
+import { getCommunicationStyle, type HistoryEntry, RESULT_KEY, ANSWERS_KEY, HISTORY_KEY, COMPARE_KEY } from "@/lib/result-helpers"
+import { AI_ANALYSIS_KEY, AI_QUESTIONS_KEY, PROFILE_KEY, TEST_MODE_KEY, QUESTION_IDS_KEY } from "@/lib/constants"
 import { type AIAnalysis } from "@/lib/ai-types"
 import { RobustAnalysisClient } from "@/lib/robust-analysis-client"
-import { ArrowLeft, Copy, Share2, Sparkles, Star, Target, TrendingUp, Users, Loader, FileJson, History } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Copy, Share2, Sparkles, Loader, History } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import dynamic from "next/dynamic"
@@ -24,6 +23,7 @@ const RadarChart = dynamic(() => import("@/components/charts/RadarChart").then(m
 })
 
 export default function ResultPage() {
+  const [loaded, setLoaded] = useState(false)
   const [result, setResult] = useState<MbtiResult | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [testMode, setTestMode] = useState<string>("standard")
@@ -56,11 +56,12 @@ export default function ResultPage() {
       if (savedAnalysis) setAiAnalysis(JSON.parse(savedAnalysis) as AIAnalysis)
     } catch (error) {
       console.warn(":", error)
+    } finally {
+      setLoaded(true)
     }
   }, [])
 
   const info = useMemo(() => (result ? typeDisplayInfo(result.type, locale) : null), [result, locale])
-  const gradient = info?.gradient || "from-zinc-900 to-zinc-500"
 
   const saveToHistory = () => {
     if (!result) return
@@ -80,6 +81,63 @@ export default function ResultPage() {
     } catch (e) {
       toast({ title: tCommon('error'), variant: "destructive" })
     }
+  }
+
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({ title: t('copied') })
+      return
+    } catch {}
+
+    try {
+      const el = document.createElement("textarea")
+      el.value = text
+      el.style.position = "fixed"
+      el.style.top = "-9999px"
+      el.style.left = "-9999px"
+      document.body.appendChild(el)
+      el.focus()
+      el.select()
+      document.execCommand("copy")
+      document.body.removeChild(el)
+      toast({ title: t('copied') })
+    } catch (error) {
+      console.warn("copy failed:", error)
+      toast({ title: tCommon('error'), variant: "destructive" })
+    }
+  }
+
+  const baseShareText = useMemo(() => {
+    if (!result) return ""
+    const title = `MBTI ${result.type}${info?.name ? ` - ${info.name}` : ""}`
+    return [title, formatScoresForShare(result)].join("\n")
+  }, [result, info?.name])
+
+  const shareOrCopy = async () => {
+    if (!result) return
+    const url = typeof window !== "undefined" ? window.location.href : ""
+    const text = url ? `${baseShareText}\n${url}` : baseShareText
+
+    try {
+      if (navigator.share && url) {
+        await navigator.share({ title: `MBTI ${result.type}`, text, url })
+        return
+      }
+      await copyText(text)
+    } catch (error) {
+      console.warn("share failed:", error)
+      toast({ title: tCommon('error'), variant: "destructive" })
+    }
+  }
+
+  const copyAIAnalysis = async () => {
+    if (!result || !aiAnalysis) return
+    const parts: string[] = [`MBTI ${result.type}${info?.name ? ` - ${info.name}` : ""}`]
+    if (aiAnalysis.summary) parts.push(`${t('aiAnalysis.summary.label')}\n${aiAnalysis.summary}`)
+    parts.push(`${t('aiAnalysis.career.label')}\n${aiAnalysis.careerGuidance}`)
+    parts.push(`${t('aiAnalysis.growth.label')}\n${aiAnalysis.personalGrowth}`)
+    await copyText(parts.join("\n\n"))
   }
 
   const generateAIAnalysis = async () => {
@@ -120,7 +178,45 @@ export default function ResultPage() {
     }
   }
 
-  if (!result) return null
+  if (!loaded) {
+    return (
+      <div className="min-h-screen bg-white text-zinc-900 selection:bg-zinc-900 selection:text-white font-sans antialiased">
+        <SiteHeader />
+        <main className="pt-48 pb-32 px-6 lg:px-20 text-center">
+          <Loader className="w-12 h-12 animate-spin mx-auto text-zinc-200 mb-8" />
+          <h1 className="text-4xl font-bold tracking-tight">{tCommon('loading')}</h1>
+        </main>
+      </div>
+    )
+  }
+
+  if (!result) {
+    return (
+      <div className="min-h-screen bg-white text-zinc-900 selection:bg-zinc-900 selection:text-white font-sans antialiased">
+        <SiteHeader />
+        <main className="pt-48 pb-32 px-6 lg:px-20">
+          <div className="max-w-3xl mx-auto space-y-8">
+            <div className="text-[10px] font-bold tracking-[0.3em] uppercase text-zinc-400">{t('empty.label')}</div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">{t('empty.title')}</h1>
+            <p className="text-lg text-zinc-500 font-medium leading-relaxed">{t('empty.description')}</p>
+            <div className="pt-6 flex flex-col sm:flex-row gap-4">
+              <Link href="/test">
+                <button className="h-14 px-8 bg-zinc-900 text-white font-bold text-xs uppercase tracking-widest rounded-md hover:bg-black transition-all">
+                  {tCommon('startTest')}
+                </button>
+              </Link>
+              <Link href="/history">
+                <button className="h-14 px-8 border border-zinc-100 text-zinc-900 font-bold text-xs uppercase tracking-widest rounded-md hover:border-zinc-900 transition-all">
+                  {tCommon('history')}
+                </button>
+              </Link>
+            </div>
+          </div>
+        </main>
+        <SiteFooter variant="minimal" />
+      </div>
+    )
+  }
 
   const radarScores = result.scores as RadarScores
   const compareScores = compareEntry?.result?.scores as RadarScores | undefined
@@ -172,7 +268,7 @@ export default function ResultPage() {
                       {t('hero.saveToHistory')}
                     </button>
                     <button 
-                      onClick={() => toast({ title: t('copied') })}
+                      onClick={shareOrCopy}
                       className="h-14 px-8 bg-zinc-900 text-white font-bold text-[10px] uppercase tracking-widest rounded-md hover:bg-black transition-all flex items-center gap-2"
                     >
                       <Share2 className="w-3 h-3" />
@@ -293,7 +389,8 @@ export default function ResultPage() {
                         {t('aiAnalysis.actions.regenerate')}
                       </button>
                       <button 
-                        onClick={() => toast({ title: t('copied') })}
+                        onClick={copyAIAnalysis}
+                        disabled={!aiAnalysis}
                         className="h-12 w-12 border border-white/20 text-white rounded-md flex items-center justify-center hover:bg-white/5"
                       >
                         <Copy className="w-4 h-4" />
@@ -320,7 +417,7 @@ export default function ResultPage() {
                   <div className="space-y-4">
                     <h4 className="text-lg font-bold">{t('traits.communication')}</h4>
                     <p className="text-sm text-zinc-500 leading-relaxed">
-                      {getCommunicationStyle(result.type)}
+                      {getCommunicationStyle(result.type, locale)}
                     </p>
                   </div>
                 </div>
@@ -336,7 +433,7 @@ export default function ResultPage() {
               {t('cta.title')}
             </h2>
             <div className="pt-12 flex flex-col md:flex-row justify-center gap-6">
-              <Link href="/test" onClick={() => { localStorage.removeItem(RESULT_KEY); localStorage.removeItem(ANSWERS_KEY); }}>
+              <Link href="/test" onClick={() => { localStorage.removeItem(RESULT_KEY); localStorage.removeItem(ANSWERS_KEY); localStorage.removeItem(QUESTION_IDS_KEY); }}>
                 <button className="h-20 px-16 border border-zinc-900 text-zinc-900 font-bold text-lg tracking-widest uppercase hover:bg-zinc-50 transition-all active:scale-95 rounded-md">
                   {t('cta.retest')}
                 </button>

@@ -1,8 +1,5 @@
 import { NextRequest } from 'next/server'
-
-type OpenAIStreamDelta = { content?: string }
-type OpenAIStreamChoice = { delta?: OpenAIStreamDelta }
-type OpenAIStreamChunk = { choices?: OpenAIStreamChoice[] }
+import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
 
 type NDJSONQuestion = {
   question: string
@@ -68,35 +65,9 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
         }
 
         try {
-          //  OpenAI API
-          const openaiResponse = await fetch(process.env.OPENAI_API_URL + '/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: process.env.OPENAI_MODEL,
-              messages: [
-                { role: 'system', content: 'You are a professional MBTI test generator. Output ONLY NDJSON format as requested.' },
-                { role: 'user', content: prompt }
-              ],
-              temperature: 0.7,
-              stream: true
-            })
-          })
+          const aiConfig = resolveAIConfig()
+          assertAIConfig(aiConfig)
 
-          if (!openaiResponse.ok) {
-            throw new Error(`OpenAI API: ${openaiResponse.status}`)
-          }
-
-          const reader = openaiResponse.body?.getReader()
-          if (!reader) {
-            throw new Error('')
-          }
-
-          //  NDJSON - 
-          const decoder = new TextDecoder('utf-8')
           let buffer = ''
           let currentQuestionCount = 0
           const generatedQuestions: NDJSONQuestion[] = []
@@ -109,31 +80,18 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
             batchIndex
           })
 
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
+          const iterator = streamAIText(aiConfig, {
+            messages: [
+              { role: 'system', content: 'You are a professional MBTI test generator. Output ONLY NDJSON format as requested.' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+            timeoutMs: 60000
+          })
 
-            //  chunk
-            const chunk = decoder.decode(value, { stream: true })
-            
-            //  contentSSE
-            const lines = chunk.split('\n')
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6).trim()
-                if (data === '[DONE]' || data === '') continue
-                
-                try {
-                  const parsed = JSON.parse(data) as OpenAIStreamChunk
-                  const content = parsed.choices?.[0]?.delta?.content
-                  if (content) {
-                    buffer += content
-                  }
-                } catch (e) {
-                  console.warn('SSE:', e)
-                  continue
-                }
-              }
+          for await (const chunk of iterator) {
+            if (chunk.text) {
+              buffer += chunk.text
             }
 
             //  NDJSON - 

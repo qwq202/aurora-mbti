@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateProfile, SECURITY_ERRORS } from '@/lib/security'
 import { type UserProfile } from '@/lib/mbti'
+import { assertAIConfig, completeAIText, resolveAIConfig, type AIResolvedConfig } from '@/lib/ai-provider'
 
 type FollowupQuestion = {
   id: string
@@ -38,7 +39,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_API_URL || !process.env.OPENAI_MODEL) {
+    let aiConfig
+    try {
+      aiConfig = resolveAIConfig()
+      assertAIConfig(aiConfig)
+    } catch (error) {
       return NextResponse.json(
         {
           success: false,
@@ -67,7 +72,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const parsed = await generateFollowupQuestionsWithFallback(prompt, profile)
+    const parsed = await generateFollowupQuestionsWithFallback(prompt, profile, aiConfig)
 
     let sanitizedQuestions = normalizeQuestions(parsed.questions || [])
 
@@ -198,7 +203,8 @@ function normalizeQuestions(questions: FollowupQuestion[]): FollowupQuestion[] {
 
 async function generateFollowupQuestionsWithFallback(
   prompt: string,
-  profile: UserProfile
+  profile: UserProfile,
+  aiConfig: AIResolvedConfig
 ): Promise<{ questions: FollowupQuestion[] }> {
   const messages = [
     {
@@ -212,7 +218,6 @@ async function generateFollowupQuestionsWithFallback(
   ]
 
   const schemaPayload = {
-    model: process.env.OPENAI_MODEL,
     messages,
     temperature: 0.3,
     response_format: {
@@ -250,7 +255,7 @@ async function generateFollowupQuestionsWithFallback(
     }
   }
 
-  const primary = await invokeOpenAI(schemaPayload, 'json_schema')
+  const primary = await invokeOpenAI(schemaPayload, 'json_schema', aiConfig)
   if (primary.success) {
     return primary.data!
   }
@@ -262,13 +267,12 @@ async function generateFollowupQuestionsWithFallback(
   }
 
   const jsonObjectPayload = {
-    model: process.env.OPENAI_MODEL,
     messages,
     temperature: 0.3,
     response_format: { type: 'json_object' }
   }
 
-  const secondary = await invokeOpenAI(jsonObjectPayload, 'json_object')
+  const secondary = await invokeOpenAI(jsonObjectPayload, 'json_object', aiConfig)
   if (secondary.success) {
     return secondary.data!
   }
@@ -292,10 +296,9 @@ async function generateFollowupQuestionsWithFallback(
   ]
 
   const finalAttempt = await invokeOpenAI({
-    model: process.env.OPENAI_MODEL,
     messages: strictMessages,
     temperature: 0.3
-  }, 'strict_prompt')
+  }, 'strict_prompt', aiConfig)
 
   if (!finalAttempt.success) {
     console.warn(' AI', finalAttempt.errorMessage)
@@ -305,7 +308,7 @@ async function generateFollowupQuestionsWithFallback(
   return finalAttempt.data!
 }
 
-async function invokeOpenAI(payload: Record<string, unknown>, strategy: 'json_schema' | 'json_object' | 'strict_prompt'): Promise<{
+async function invokeOpenAI(payload: Record<string, unknown>, strategy: 'json_schema' | 'json_object' | 'strict_prompt', aiConfig: AIResolvedConfig): Promise<{
   success: boolean
   data?: { questions: FollowupQuestion[] }
   errorMessage: string
@@ -313,57 +316,26 @@ async function invokeOpenAI(payload: Record<string, unknown>, strategy: 'json_sc
 }> {
   console.log(' AI', {
     strategy,
-    endpoint: `${process.env.OPENAI_API_URL}/v1/chat/completions`
-  })
-  const response = await fetch(`${process.env.OPENAI_API_URL}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-    },
-    body: JSON.stringify(payload)
+    provider: aiConfig.provider
   })
 
-  const text = await response.text()
-
-  if (!response.ok) {
-    let errorMessage = `OpenAI API: ${response.status} - ${text}`
-    let shouldFallback = false
-    try {
-      const parsed = JSON.parse(text) as { error?: { message?: string; code?: string } }
-      const msg = parsed?.error?.message || parsed?.error?.code || ''
-      errorMessage = `OpenAI API: ${msg || text}`
-      if (typeof msg === 'string' && (msg.toLowerCase().includes('response_format') || msg.toLowerCase().includes('unsupported'))) {
-        shouldFallback = true
-      }
-    } catch (error) {
-      console.warn('OpenAI:', error)
-    }
-    console.warn(' AI', {
-      strategy,
-      status: response.status,
-      errorBody: text.slice(0, 500)
-    })
-    return {
-      success: false,
-      errorMessage,
-      shouldFallback: shouldFallback || response.status >= 500
-    }
-  }
-
-  let resultJson: unknown
+  let content = ''
   try {
-    resultJson = JSON.parse(text) as unknown
+    content = await completeAIText(aiConfig, {
+      messages: (payload.messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>) || [],
+      temperature: typeof payload.temperature === 'number' ? payload.temperature : 0.3,
+      responseFormat: payload.response_format as { type: 'json_schema' | 'json_object'; json_schema?: Record<string, unknown> }
+    })
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    const shouldFallback = msg.toLowerCase().includes('response_format') || msg.toLowerCase().includes('unsupported')
     return {
       success: false,
-      errorMessage: `OpenAI: ${error}`,
-      shouldFallback: false
+      errorMessage: msg,
+      shouldFallback
     }
   }
 
-  const responseObj = resultJson as { choices?: Array<{ message?: { content?: string } }> }
-  const content = responseObj.choices?.[0]?.message?.content
   if (!content) {
     return {
       success: false,

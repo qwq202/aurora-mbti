@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type SVGProps } from "react"
 import { useRouter } from "@/i18n/routing"
 import { useLocale, useTranslations } from "next-intl"
 import { type Question, type Answers, type UserProfile, type AIQuestionInput, computeMbti, getPersonalizedQuestions, convertAIQuestionsToMBTI, getQuestions } from "@/lib/mbti"
-import { ANSWERS_KEY, RESULT_KEY, PROFILE_KEY, TEST_MODE_KEY, AI_QUESTIONS_KEY } from "@/lib/constants"
+import { ANSWERS_KEY, RESULT_KEY, PROFILE_KEY, TEST_MODE_KEY, AI_QUESTIONS_KEY, QUESTION_IDS_KEY, STANDARD_QUESTION_COUNT } from "@/lib/constants"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { FadeIn, SlideUp, SlideLeft, SlideRight } from "@/components/scroll-reveal"
@@ -15,6 +15,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft, ArrowRight, Check, RotateCcw, AlertTriangle, User, Target, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+
+const buildStableQuestionList = (questions: Question[], answeredIds: string[]) => {
+  const answeredSet = new Set(answeredIds)
+  const answeredOrdered = questions.filter((q) => answeredSet.has(q.id))
+  const remaining = questions.filter((q) => !answeredSet.has(q.id))
+  return [...answeredOrdered, ...remaining].slice(0, STANDARD_QUESTION_COUNT)
+}
 
 
 export default function TestPage() {
@@ -82,8 +89,59 @@ export default function TestPage() {
         console.warn("AI:", error)
       }
     }
-    
-    return getPersonalizedQuestions(profile, localeQuestions)
+
+    const questionById = new Map(localeQuestions.map((q) => [q.id, q]))
+    let storedIds: string[] | null = null
+
+    try {
+      const raw = localStorage.getItem(QUESTION_IDS_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          storedIds = parsed.filter((id) => typeof id === "string")
+        }
+      }
+    } catch (error) {
+      console.warn(":", error)
+    }
+
+    if (storedIds?.length) {
+      const storedQuestions = storedIds
+        .map((id) => questionById.get(id))
+        .filter(Boolean) as Question[]
+      if (storedQuestions.length === storedIds.length) {
+        return storedQuestions
+      }
+    }
+
+    let recoveredIds: string[] = []
+    try {
+      const rawAnswers = localStorage.getItem(ANSWERS_KEY)
+      if (rawAnswers) {
+        const parsedAnswers = JSON.parse(rawAnswers) as Record<string, unknown>
+        recoveredIds = Object.keys(parsedAnswers).filter((id) => questionById.has(id))
+      }
+    } catch (error) {
+      console.warn(":", error)
+    }
+
+    if (recoveredIds.length > 0) {
+      const recoveredQuestions = buildStableQuestionList(localeQuestions, recoveredIds)
+      try {
+        localStorage.setItem(QUESTION_IDS_KEY, JSON.stringify(recoveredQuestions.map((q) => q.id)))
+      } catch (error) {
+        console.warn(":", error)
+      }
+      return recoveredQuestions
+    }
+
+    const generatedQuestions = getPersonalizedQuestions(profile, localeQuestions)
+    try {
+      localStorage.setItem(QUESTION_IDS_KEY, JSON.stringify(generatedQuestions.map((q) => q.id)))
+    } catch (error) {
+      console.warn(":", error)
+    }
+    return generatedQuestions
   }, [profile, testMode, locale])
   
   const total = questions.length
@@ -125,6 +183,7 @@ export default function TestPage() {
       try {
         localStorage.removeItem(ANSWERS_KEY)
         localStorage.removeItem(RESULT_KEY)
+        localStorage.removeItem(QUESTION_IDS_KEY)
         setAnswers({})
         setStep(0)
         setInitialTestMode(testMode)
@@ -179,6 +238,7 @@ export default function TestPage() {
     try {
       localStorage.removeItem(ANSWERS_KEY)
       localStorage.removeItem(RESULT_KEY)
+      localStorage.removeItem(QUESTION_IDS_KEY)
     } catch (error) {
       console.warn(":", error)
     }

@@ -2,20 +2,7 @@ import { NextRequest } from 'next/server'
 import { validateAnalysisAPI } from '@/lib/api-validation'
 import { SECURITY_ERRORS } from '@/lib/security'
 import { type AIAnalysis } from '@/lib/ai-types'
-
-type OpenAIStreamDelta = {
-  content?: string
-  function_call?: { name?: string; arguments?: string }
-}
-
-type OpenAIStreamChoice = {
-  delta?: OpenAIStreamDelta
-  finish_reason?: string | null
-}
-
-type OpenAIStreamChunk = {
-  choices?: OpenAIStreamChoice[]
-}
+import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
 
 /**  heuristics */
 function heuristicsClean(s: string): string {
@@ -134,102 +121,29 @@ JSON
             message: '...'
           })}\n\n`))
 
-          //  OpenAIAPI
-          const openaiResponse = await fetch(process.env.OPENAI_API_URL + '/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: process.env.OPENAI_MODEL,
-              messages: [
-                { role: 'system', content: 'You are a professional MBTI analyst. Output only valid JSON format with complete analysis structure.' },
-                { role: 'user', content: prompt }
-              ],
-              temperature: 0.7,
-              stream: true
-            })
+          const aiConfig = resolveAIConfig()
+          assertAIConfig(aiConfig)
+
+          let funcArgsBuf = ''
+
+          const streamIterator = streamAIText(aiConfig, {
+            messages: [
+              { role: 'system', content: 'You are a professional MBTI analyst. Output only valid JSON format with complete analysis structure.' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+            timeoutMs: 60000
           })
 
-          if (!openaiResponse.ok) {
-            throw new Error(`OpenAI API: ${openaiResponse.status}`)
-          }
-
-          const reader = openaiResponse.body?.getReader()
-          if (!reader) {
-            throw new Error('')
-          }
-
-          //  SSE
-          const decoder = new TextDecoder('utf-8')
-          let sseBuffer = ''
-          let funcArgsBuf = ''
-          let finished = false
-          
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            
-            const chunk = decoder.decode(value, { stream: true })
-            sseBuffer += chunk
-
-            // SSE lines
-            let newlineIndex: number
-            while ((newlineIndex = sseBuffer.indexOf('\n')) !== -1) {
-              const rawLine = sseBuffer.slice(0, newlineIndex).trim()
-              sseBuffer = sseBuffer.slice(newlineIndex + 1)
-
-              if (!rawLine) continue
-
-              if (rawLine.startsWith('data:')) {
-                const payload = rawLine.slice('data:'.length).trim()
-                if (payload === '[DONE]') {
-                  finished = true
-                  break
-                }
-
-                let msgObj: OpenAIStreamChunk | null = null
-                try {
-                  msgObj = JSON.parse(payload) as OpenAIStreamChunk
-                } catch (e) {
-                  console.warn('SSE:', String(e).substring(0, 50))
-                  sseBuffer = rawLine + '\n' + sseBuffer
-                  break
-                }
-
-                const choice = msgObj.choices?.[0]
-                const delta = choice?.delta
-                const finishReason = choice?.finish_reason
-
-                // 1) function_call.arguments
-                if (delta?.function_call?.arguments) {
-                  funcArgsBuf += delta.function_call.arguments
-                  currentMode = 'function_call'
-                }
-
-                // 2) function_call.name
-                if (delta?.function_call?.name) {
-                  console.log('Function call:', delta.function_call.name)
-                }
-
-                // 3) delta.content
-                if (delta?.content) {
-                  textBuffer += delta.content
-                  
-                  //  
-                  await tryParseAndValidate(textBuffer, controller, encoder)
-                }
-
-                // 4) finish_reason
-                if (finishReason || finished) {
-                  finished = true
-                  break
-                }
-              }
+          for await (const chunk of streamIterator) {
+            if (chunk.functionArgs) {
+              funcArgsBuf += chunk.functionArgs
+              currentMode = 'function_call'
             }
-            
-            if (finished) break
+            if (chunk.text) {
+              textBuffer += chunk.text
+              await tryParseAndValidate(textBuffer, controller, encoder)
+            }
           }
 
           //  

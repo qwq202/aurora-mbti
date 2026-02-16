@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useLocale, useTranslations } from "next-intl"
+import { useTranslations } from "next-intl"
 import { Link, useRouter } from "@/i18n/routing"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { FadeIn, SlideUp, SlideLeft, SlideRight } from "@/components/scroll-reveal"
-import { type UserProfile, type Question, getPersonalizedQuestions, getQuestions } from "@/lib/mbti"
-import { AI_QUESTIONS_KEY, ANSWERS_KEY, PROFILE_KEY, RESULT_KEY, TEST_MODE_KEY } from "@/lib/constants"
+import { type UserProfile, type Question } from "@/lib/mbti"
+import { AI_QUESTIONS_KEY, ANSWERS_KEY, PROFILE_KEY, RESULT_KEY, TEST_MODE_KEY, QUESTION_IDS_KEY, STANDARD_QUESTION_COUNT } from "@/lib/constants"
 import { RobustAIClient } from "@/lib/robust-ai-client"
 import { ArrowLeft, ArrowRight, Sparkles, Zap, Brain, Loader, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -38,7 +38,6 @@ type FollowupQuestion = {
 
 export default function TestModePage() {
   const router = useRouter()
-  const locale = useLocale()
   const t = useTranslations('testMode')
   const tCommon = useTranslations('common')
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -99,7 +98,8 @@ export default function TestModePage() {
       
       if (savedAnswersRaw) {
         const parsed = JSON.parse(savedAnswersRaw) as Record<string, unknown>
-        answered = Object.keys(parsed || {}).length
+        const parsedIds = Object.keys(parsed || {})
+        answered = parsedIds.length
         
         if (answered > 0) {
           if (lastMode.startsWith("ai")) {
@@ -109,7 +109,26 @@ export default function TestModePage() {
               total = Array.isArray(parsedQuestions) ? parsedQuestions.length : 0
             }
           } else if (profile) {
-            total = getPersonalizedQuestions(profile, getQuestions(locale)).length
+            let storedIds: string[] | null = null
+            try {
+              const raw = localStorage.getItem(QUESTION_IDS_KEY)
+              if (raw) {
+                const parsedIdsRaw = JSON.parse(raw)
+                if (Array.isArray(parsedIdsRaw)) {
+                  storedIds = parsedIdsRaw.filter((id) => typeof id === "string")
+                }
+              }
+            } catch (error) {
+              console.warn(":", error)
+            }
+            if (storedIds?.length) {
+              const storedSet = new Set(storedIds)
+              answered = parsedIds.filter((id) => storedSet.has(id)).length
+              total = storedIds.length
+            } else {
+              answered = parsedIds.filter((id) => id.startsWith("q")).length
+              total = STANDARD_QUESTION_COUNT
+            }
           }
         }
       }
@@ -124,7 +143,7 @@ export default function TestModePage() {
       console.warn(":", error)
       setResumeInfo({ available: false, mode: "standard", answered: 0, total: 0 })
     }
-  }, [profile, locale])
+  }, [profile])
 
   const continueLast = () => {
     try {
@@ -143,6 +162,7 @@ export default function TestModePage() {
     try {
       localStorage.removeItem(ANSWERS_KEY)
       localStorage.removeItem(RESULT_KEY)
+      localStorage.removeItem(QUESTION_IDS_KEY)
       setResumeInfo((r) => ({ ...r, available: false, answered: 0 }))
       toast({ title: tCommon('success') })
     } catch (error) {

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { type Answers, type MbtiResult, type Question, type UserProfile } from '@/lib/mbti'
-
-type OpenAIStreamDelta = { content?: string }
-type OpenAIStreamChoice = { delta?: OpenAIStreamDelta }
-type OpenAIStreamChunk = { choices?: OpenAIStreamChoice[] }
+import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
 
 // AIAPI - token
 export async function POST(request: NextRequest) {
@@ -81,80 +78,35 @@ JSON
     // SSE
     const encoder = new TextEncoder()
     
+    const aiConfig = resolveAIConfig()
+    assertAIConfig(aiConfig)
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // OpenAI API with stream=true
-          const response = await fetch(process.env.OPENAI_API_URL + '/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: process.env.OPENAI_MODEL,
-              messages: [
-                { role: 'user', content: prompt }
-              ],
-              temperature: 0.7,
-              stream: true  // 
-            })
+          let accumulatedContent = ''
+
+          const iterator = streamAIText(aiConfig, {
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.7,
+            timeoutMs: 60000
           })
 
-          if (!response.ok) {
-            throw new Error(`OpenAI API: ${response.status}`)
+          for await (const chunk of iterator) {
+            if (!chunk.text) continue
+            accumulatedContent += chunk.text
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'delta',
+              delta: chunk.text,
+              content: accumulatedContent
+            })}\n\n`))
           }
 
-          const reader = response.body?.getReader()
-          if (!reader) {
-            throw new Error('')
-          }
-
-          let accumulatedContent = ''
-          
-          while (true) {
-            const { done, value } = await reader.read()
-            
-            if (done) break
-            
-            // SSE
-            const chunk = new TextDecoder().decode(value)
-            const lines = chunk.split('\n')
-            
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6).trim()
-                
-                if (data === '[DONE]') {
-                  // 
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                    type: 'done',
-                    content: accumulatedContent
-                  })}\n\n`))
-                  controller.close()
-                  return
-                }
-                
-                try {
-                  const parsed = JSON.parse(data) as OpenAIStreamChunk
-                  const delta = parsed.choices?.[0]?.delta?.content
-                  
-                  if (delta) {
-                    accumulatedContent += delta
-                    
-                    // 
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                      type: 'delta',
-                      delta: delta,
-                      content: accumulatedContent
-                    })}\n\n`))
-                  }
-                } catch (parseError) {
-                  console.warn(':', parseError)
-                }
-              }
-            }
-          }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: 'done',
+            content: accumulatedContent
+          })}\n\n`))
+          controller.close()
           
         } catch (error) {
           console.error(':', error)

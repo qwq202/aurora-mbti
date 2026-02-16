@@ -389,16 +389,21 @@
         "cancel": "取消"
       }
     },
-    "traits": {
-      "label": "// 性格特征",
-      "strengths": "优势",
-      "communication": "沟通风格"
-    },
-    "cta": {
-      "title": "想要再测一次?",
-      "retest": "重新测试",
-      "home": "返回首页"
-    },
+  "traits": {
+    "label": "// 性格特征",
+    "strengths": "优势",
+    "communication": "沟通风格"
+  },
+  "empty": {
+    "label": "00 / 未找到结果",
+    "title": "暂无可展示的结果",
+    "description": "当前浏览器中没有找到你的测试结果。你可以重新测一次，或前往历史记录查看是否已保存。"
+  },
+  "cta": {
+    "title": "想要再测一次?",
+    "retest": "重新测试",
+    "home": "返回首页"
+  },
     "copied": "已复制到剪贴板"
   },
   "history": {

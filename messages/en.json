@@ -389,16 +389,21 @@
         "cancel": "Cancel"
       }
     },
-    "traits": {
-      "label": "// Personality Traits",
-      "strengths": "Strengths",
-      "communication": "Communication Style"
-    },
-    "cta": {
-      "title": "Want to Test Again?",
-      "retest": "Retake Test",
-      "home": "Back to Home"
-    },
+  "traits": {
+    "label": "// Personality Traits",
+    "strengths": "Strengths",
+    "communication": "Communication Style"
+  },
+  "empty": {
+    "label": "00 / No Result Found",
+    "title": "No result to display",
+    "description": "Your result wasn’t found in this browser. Try taking the test again, or check your history if you saved it."
+  },
+  "cta": {
+    "title": "Want to Test Again?",
+    "retest": "Retake Test",
+    "home": "Back to Home"
+  },
     "copied": "Copied to Clipboard"
   },
   "history": {

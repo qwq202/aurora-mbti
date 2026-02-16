@@ -43,7 +43,6 @@ export class RobustAnalysisClient {
     
     try {
       console.log(`: ${mbtiResult.type}`)
-      
       this.controller = new AbortController()
 
       const response = await fetch('/api/generate-analysis-robust', {

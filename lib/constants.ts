@@ -5,5 +5,7 @@ export const HISTORY_KEY = 'mbti_history_v1'
 export const COMPARE_KEY = 'mbti_compare_target_v1'
 export const TEST_MODE_KEY = 'mbti_test_mode_v1'
 export const AI_QUESTIONS_KEY = 'mbti_ai_questions_v1'
+export const QUESTION_IDS_KEY = 'mbti_question_ids_v1'
 export const AI_ANALYSIS_KEY = 'mbti_ai_analysis_v1'
 export const PERFORMANCE_METRICS_KEY = 'performance-metrics'
+export const STANDARD_QUESTION_COUNT = 60

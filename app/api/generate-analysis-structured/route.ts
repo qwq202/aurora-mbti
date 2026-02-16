@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateAnalysisAPI } from '@/lib/api-validation'
 import { type Dimension, type DimensionScore } from '@/lib/mbti'
+import { assertAIConfig, completeAIText, resolveAIConfig } from '@/lib/ai-provider'
 
 type StructuredAnalysis = {
   personality_type: string
@@ -200,41 +201,27 @@ ${dimensionSummary}
 
 `
 
-    // OpenAI API with JSON Schema Mode
-    const response = await fetch(process.env.OPENAI_API_URL + '/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL,
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are a professional MBTI analyst. You must output valid JSON that exactly matches the provided schema. Never output anything other than the JSON object. Base your analysis strictly on the provided test data and user profile.' 
-          },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.2, // 
-        response_format: { 
-          type: "json_schema",
-          json_schema: {
-            name: "mbti_analysis",
-            schema: analysisSchema,
-            strict: true // 100%
-          }
+    const aiConfig = resolveAIConfig()
+    assertAIConfig(aiConfig)
+
+    const content = await completeAIText(aiConfig, {
+      messages: [
+        { 
+          role: 'system', 
+          content: 'You are a professional MBTI analyst. You must output valid JSON that exactly matches the provided schema. Never output anything other than the JSON object. Base your analysis strictly on the provided test data and user profile.' 
+        },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.2,
+      responseFormat: { 
+        type: "json_schema",
+        json_schema: {
+          name: "mbti_analysis",
+          schema: analysisSchema,
+          strict: true
         }
-      })
+      }
     })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`OpenAI API: ${response.status} - ${errorText}`)
-    }
-
-    const result = await response.json()
-    const content = result.choices?.[0]?.message?.content
 
     if (!content) {
       throw new Error('AI')

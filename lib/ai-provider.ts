@@ -287,6 +287,9 @@ export async function* streamAIText(config: AIResolvedConfig, options: AIComplet
 
   if (config.spec.type === 'gemini') {
     delete headers.Authorization
+    if (config.apiKey) {
+      headers['x-goog-api-key'] = config.apiKey
+    }
   }
 
   let url = ''
@@ -302,7 +305,6 @@ export async function* streamAIText(config: AIResolvedConfig, options: AIComplet
     const endpoint = joinUrl(config.baseUrl, `/models/${encodeURIComponent(config.model)}:streamGenerateContent`)
     const urlObj = new URL(endpoint)
     urlObj.searchParams.set('alt', 'sse')
-    if (config.apiKey) urlObj.searchParams.set('key', config.apiKey)
     url = urlObj.toString()
     body = buildGeminiBody(options)
   } else if (config.spec.type === 'anthropic') {
@@ -402,6 +404,9 @@ export async function completeAIText(config: AIResolvedConfig, options: AIComple
 
   if (config.spec.type === 'gemini') {
     delete headers.Authorization
+    if (config.apiKey) {
+      headers['x-goog-api-key'] = config.apiKey
+    }
   }
 
   let url = ''
@@ -416,7 +421,6 @@ export async function completeAIText(config: AIResolvedConfig, options: AIComple
   } else if (config.spec.type === 'gemini') {
     const endpoint = joinUrl(config.baseUrl, `/models/${encodeURIComponent(config.model)}:generateContent`)
     const urlObj = new URL(endpoint)
-    if (config.apiKey) urlObj.searchParams.set('key', config.apiKey)
     url = urlObj.toString()
     body = buildGeminiBody(options)
   } else if (config.spec.type === 'anthropic') {

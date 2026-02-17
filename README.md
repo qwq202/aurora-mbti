@@ -13,6 +13,7 @@
 - 个人档案：用于个性化追问与分析
 - 多语言：`next-intl`（路由位于 `app/[locale]`）
 - 本地存储：`localStorage`（保存档案/历史等）
+- 后台控制台：`/[locale]/admin`（登录、运行状态、供应商连通测试）
 
 ## 技术栈
 
@@ -60,6 +61,7 @@ pnpm build
 - `AI_MODEL`：统一模型名（可留空）
 - `CORS_ALLOWED_ORIGINS`：允许跨域来源（逗号分隔，默认仅同源）
 - `DEBUG_API_LOGS`：调试日志开关（仅开发环境建议开启，默认关闭）
+- `ADMIN_TOKEN`：后台登录令牌（用于访问 `/[locale]/admin` 和 `/api/admin/*`）
 
 当 `AI_PROVIDER` 设置后，服务端会按该提供方读取**专用变量**并作为默认值。  
 优先级：`AI_*`（显式） > 专用变量（如 `OPENROUTER_API_KEY`）> 内置默认值。
@@ -206,6 +208,7 @@ ANTHROPIC_BASE_URL=
 GEMINI_BASE_URL=
 CORS_ALLOWED_ORIGINS=
 DEBUG_API_LOGS=false
+ADMIN_TOKEN=
 ```
 
 ## API 路由
@@ -215,6 +218,14 @@ DEBUG_API_LOGS=false
 - `POST /api/generate-questions-*`：生成题目（结构化/流式/更稳健版本）
 - `POST /api/generate-analysis-*`：生成分析（结构化/流式/更稳健版本）
 - `POST /api/generate-profile-followups`：基于用户档案生成追问
+- `POST /api/admin/login`：后台登录（设置 HttpOnly Cookie）
+- `POST /api/admin/logout`：后台退出
+- `GET /api/admin/overview`：后台概览数据（运行时、AI 配置、安全开关）
+- `POST /api/admin/provider-test`：按当前/指定 provider 执行连通测试
+
+## 后台控制台（缝合方案）
+
+后台页面路径：`/[locale]/admin`，视觉与信息架构参考了高星开源后台模板 **AdminLTE**（GitHub: `ColorlibHQ/AdminLTE`），并按本项目技术栈改为 Next.js + Tailwind 的实现。
 
 ## Docker（本地）
 

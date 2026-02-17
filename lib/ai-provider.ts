@@ -88,6 +88,41 @@ function getProviderSpec(provider?: string) {
   return AI_PROVIDER_MAP.openai
 }
 
+function normalizeBaseUrl(provider: AIProviderId, baseUrl: string, defaultBaseUrl?: string) {
+  if (!baseUrl) return baseUrl
+
+  try {
+    const parsed = new URL(baseUrl)
+    const pathname = parsed.pathname.replace(/\/+$/, '')
+    const defaultPath = (() => {
+      if (provider === 'newapi') return '/v1'
+      if (!defaultBaseUrl) return ''
+      try {
+        const defaultUrl = new URL(defaultBaseUrl)
+        const path = defaultUrl.pathname.replace(/\/+$/, '')
+        return path && path !== '/' ? path : ''
+      } catch {
+        return ''
+      }
+    })()
+
+    if (!pathname || pathname === '') {
+      if (defaultPath) {
+        parsed.pathname = defaultPath
+      }
+      return parsed.toString().replace(/\/+$/, '')
+    }
+
+    if (provider === 'newapi' && !pathname.endsWith('/v1')) {
+      parsed.pathname = `${pathname}/v1`
+    }
+
+    return parsed.toString().replace(/\/+$/, '')
+  } catch {
+    return baseUrl
+  }
+}
+
 export function resolveAIConfig(input?: AIConfigInput): AIResolvedConfig {
   const provider = (input?.provider || readEnv('AI_PROVIDER') || 'openai') as AIProviderId
   const spec = getProviderSpec(provider)
@@ -99,7 +134,8 @@ export function resolveAIConfig(input?: AIConfigInput): AIResolvedConfig {
     readEnv('AI_API_KEY') ||
     (spec.id === 'openai' || spec.id === 'openai-responses' ? readEnv('OPENAI_API_KEY') : undefined)
 
-  const baseUrl = (input?.baseUrl || envBaseUrl || spec.defaultBaseUrl || '').replace(/\/+$/, '')
+  const rawBaseUrl = (input?.baseUrl || envBaseUrl || spec.defaultBaseUrl || '').replace(/\/+$/, '')
+  const baseUrl = normalizeBaseUrl(spec.id, rawBaseUrl, spec.defaultBaseUrl)
   const model = input?.model || envModel || spec.defaultModel || ''
   const apiKey = input?.apiKey || envApiKey
   const openrouterSiteUrl = input?.openrouterSiteUrl || readEnv('OPENROUTER_SITE_URL')

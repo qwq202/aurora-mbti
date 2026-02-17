@@ -58,12 +58,13 @@ export class RobustAnalysisClient {
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
+        const text = await response.text().catch(() => '')
+        throw new Error(`HTTP ${response.status}${text ? ` ${text.slice(0, 200)}` : ''}`)
       }
 
       const reader = response.body?.getReader()
       if (!reader) {
-        throw new Error('')
+        throw new Error('EMPTY_RESPONSE')
       }
 
       const decoder = new TextDecoder()
@@ -128,7 +129,7 @@ export class RobustAnalysisClient {
       
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        onError?.('', false)
+        onError?.('REQUEST_ABORTED', false)
       } else {
         onError?.(
           error instanceof Error ? error.message : '',

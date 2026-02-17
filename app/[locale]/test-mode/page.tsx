@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { Link, useRouter } from "@/i18n/routing"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
+import { toFriendlyErrorMessage } from "@/lib/friendly-error"
 
 
 type TestMode = "standard" | "ai30" | "ai60" | "ai120"
@@ -38,6 +39,7 @@ type FollowupQuestion = {
 
 export default function TestModePage() {
   const router = useRouter()
+  const locale = useLocale()
   const t = useTranslations('testMode')
   const tCommon = useTranslations('common')
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -262,9 +264,14 @@ export default function TestModePage() {
 
       router.push('/test')
     } catch (error) {
+      const message = toFriendlyErrorMessage(
+        error instanceof Error ? error.message : '',
+        locale,
+        t('errors.aiGeneration')
+      )
       toast({
         title: tCommon('error'),
-        description: t('errors.aiGeneration'),
+        description: message,
         variant: "destructive",
       })
     } finally {

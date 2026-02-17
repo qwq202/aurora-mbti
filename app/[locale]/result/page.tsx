@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import dynamic from "next/dynamic"
 import { type RadarScores } from "@/components/charts/RadarChart"
+import { toFriendlyErrorMessage } from "@/lib/friendly-error"
 
 const RadarChart = dynamic(() => import("@/components/charts/RadarChart").then(mod => ({ default: mod.RadarChart })), {
   loading: () => <div className="flex items-center justify-center h-[320px] text-zinc-400 font-bold uppercase tracking-widest text-[10px]">...</div>,
@@ -165,8 +166,9 @@ export default function ResultPage() {
           },
           onError: (err) => {
             setStreamingAnalysis('')
-            toast({ title: tCommon('error'), description: err, variant: "destructive" })
-            reject(new Error(err))
+            const message = toFriendlyErrorMessage(err, locale)
+            toast({ title: tCommon('error'), description: message, variant: "destructive" })
+            reject(new Error(message))
           }
         })
       })

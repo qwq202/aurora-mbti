@@ -134,12 +134,14 @@ export class RobustAIClient {
       })
       .then(response => {
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
+          return response.text().then((text) => {
+            throw new Error(`HTTP ${response.status}${text ? ` ${text.slice(0, 200)}` : ''}`)
+          })
         }
 
         const reader = response.body?.getReader()
         if (!reader) {
-          throw new Error('')
+          throw new Error('EMPTY_RESPONSE')
         }
 
         const decoder = new TextDecoder()
@@ -210,7 +212,7 @@ export class RobustAIClient {
       })
       .catch(error => {
         if (error.name === 'AbortError') {
-          reject(new Error(''))
+          reject(new Error('REQUEST_ABORTED'))
         } else {
           reject(error)
         }

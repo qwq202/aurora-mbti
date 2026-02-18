@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { validateAnalysisAPI } from '@/lib/api-validation'
 import { type Dimension, type DimensionScore } from '@/lib/mbti'
 import { assertAIConfig, completeAIText, resolveAIConfig } from '@/lib/ai-provider'
+import { apiError, apiOk } from '@/lib/api-response'
 
 type StructuredAnalysis = {
   personality_type: string
@@ -244,8 +245,7 @@ ${dimensionSummary}
     console.log(` : ${parsedResult.personality_type}, ${parsedResult.confidence_score}`)
 
     // 
-    return NextResponse.json({
-      success: true,
+    return apiOk({
       analysis: parsedResult,
       metadata: {
         generated_at: new Date().toISOString(),
@@ -259,11 +259,12 @@ ${dimensionSummary}
   } catch (error) {
     console.error(':', error)
     
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : '',
-      fallback_available: true
-    }, { status: 500 })
+    return apiError(
+      'INTERNAL_ERROR',
+      error instanceof Error ? error.message : '',
+      500,
+      'fallback_available=true'
+    )
   }
 }
 

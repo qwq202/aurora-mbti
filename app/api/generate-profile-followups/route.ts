@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { validateProfile, SECURITY_ERRORS } from '@/lib/security'
 import { type UserProfile } from '@/lib/mbti'
 import { assertAIConfig, completeAIText, resolveAIConfig, type AIResolvedConfig, type AIResponseFormat } from '@/lib/ai-provider'
+import { apiError, apiOk } from '@/lib/api-response'
 
 type FollowupQuestion = {
   id: string
@@ -17,26 +18,17 @@ export async function POST(request: NextRequest) {
     try {
       payload = await request.json()
     } catch {
-      return NextResponse.json(
-        { success: false, error: SECURITY_ERRORS.INVALID_INPUT },
-        { status: 400 }
-      )
+      return apiError('BAD_REQUEST', SECURITY_ERRORS.INVALID_INPUT, 400)
     }
 
     const profileValidation = validateProfile(payload?.profile)
     if (!profileValidation.valid) {
-      return NextResponse.json(
-        { success: false, error: profileValidation.error || SECURITY_ERRORS.INVALID_INPUT },
-        { status: 400 }
-      )
+      return apiError('BAD_REQUEST', profileValidation.error || SECURITY_ERRORS.INVALID_INPUT, 400)
     }
 
     const profile = profileValidation.sanitized
     if (!profile) {
-      return NextResponse.json(
-        { success: false, error: SECURITY_ERRORS.INVALID_INPUT },
-        { status: 400 }
-      )
+      return apiError('BAD_REQUEST', SECURITY_ERRORS.INVALID_INPUT, 400)
     }
 
     let aiConfig
@@ -44,20 +36,7 @@ export async function POST(request: NextRequest) {
       aiConfig = resolveAIConfig()
       assertAIConfig(aiConfig)
     } catch (error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'AI',
-          fallback: [
-            {
-              id: 'clarify_experience',
-              question: '',
-              detail: ''
-            }
-          ]
-        },
-        { status: 503 }
-      )
+      return apiError('SERVICE_UNAVAILABLE', 'AI', 503, error instanceof Error ? error.message : '')
     }
 
     const prompt = buildPrompt(profile)
@@ -85,8 +64,7 @@ export async function POST(request: NextRequest) {
       questionCount: sanitizedQuestions.length
     })
 
-    return NextResponse.json({
-      success: true,
+    return apiOk({
       questions: sanitizedQuestions,
       metadata: {
         generated_at: new Date().toISOString(),
@@ -95,14 +73,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error(':', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : '',
-        fallback: []
-      },
-      { status: 500 }
-    )
+    return apiError('INTERNAL_ERROR', error instanceof Error ? error.message : '', 500)
   }
 }
 

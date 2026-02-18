@@ -67,7 +67,7 @@ export function SiteFooter({
         </div>
         <div className="space-y-4 text-xs font-bold uppercase tracking-widest">
           <div className="text-zinc-300">{t('resources')}</div>
-          <Link href="#" className="block hover:text-zinc-400 transition-colors">{t('docs')}</Link>
+          <Link href="/cookies" className="block hover:text-zinc-400 transition-colors">{t('docs')}</Link>
           <Link href="/about" className="block hover:text-zinc-400 transition-colors">{t('links.about')}</Link>
           <a
             href="https://github.com/qwq202/aurora-mbti"

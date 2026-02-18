@@ -4,6 +4,13 @@ import createMiddleware from 'next-intl/middleware'
 import { routing } from './i18n/routing'
 import { questionsRateLimit, analysisRateLimit, generalRateLimit, type RateLimitDecision } from '@/lib/rate-limit'
 import { CSP_CONFIG } from '@/lib/security'
+import { apiError } from '@/lib/api-response'
+import {
+  anonymousSessionCookieOptions,
+  createAnonymousSessionToken,
+  readAnonymousSessionToken,
+  verifyAnonymousSessionToken,
+} from '@/lib/anonymous-session'
 
 /**
  *  Next.js 
@@ -67,18 +74,45 @@ function resolveAllowedOrigin(request: NextRequest): string | null {
   return null
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const normalizedApiPath = pathname.startsWith('/api/v1/')
+    ? pathname.replace('/api/v1/', '/api/')
+    : pathname
+  const isApiRequest = pathname.startsWith('/api/')
+  const sessionToken = readAnonymousSessionToken(request)
+  const sessionValidation = sessionToken
+    ? await verifyAnonymousSessionToken(request, sessionToken)
+    : { valid: false as const }
   let rateLimitHeaders: Record<string, string> = {}
   const allowedOrigin = resolveAllowedOrigin(request)
   
   // 1. API
-  if (pathname.startsWith('/api/')) {
+  if (isApiRequest) {
+    if (
+      request.method === 'POST' &&
+      normalizedApiPath.startsWith('/api/generate-') &&
+      !sessionValidation.valid
+    ) {
+      const unauthorizedResponse = apiError(
+        'UNAUTHORIZED',
+        '会话校验失败，请刷新页面后重试。',
+        401,
+        'SESSION_REQUIRED'
+      )
+      const refreshedToken = await createAnonymousSessionToken(request)
+      unauthorizedResponse.cookies.set({
+        ...anonymousSessionCookieOptions(),
+        value: refreshedToken,
+      })
+      return unauthorizedResponse
+    }
+
     let rateLimitDecision: RateLimitDecision | null = null
     
-    if (pathname.includes('generate-questions')) {
+    if (normalizedApiPath.includes('generate-questions')) {
       rateLimitDecision = questionsRateLimit(request)
-    } else if (pathname.includes('generate-analysis')) {
+    } else if (normalizedApiPath.includes('generate-analysis')) {
       rateLimitDecision = analysisRateLimit(request)
     } else {
       rateLimitDecision = generalRateLimit(request)
@@ -94,8 +128,10 @@ export function proxy(request: NextRequest) {
   }
   
   // 2. 
-  const response = pathname.startsWith('/api/')
-    ? NextResponse.next()
+  const response = isApiRequest
+    ? (pathname.startsWith('/api/v1/')
+        ? NextResponse.rewrite(new URL(normalizedApiPath, request.url))
+        : NextResponse.next())
     : (intlMiddleware(request) ?? NextResponse.next())
   
   // 
@@ -104,23 +140,17 @@ export function proxy(request: NextRequest) {
   })
   
   // 3. API
-  if (pathname.startsWith('/api/')) {
+  if (isApiRequest) {
     // 
     if (!['GET', 'POST', 'OPTIONS'].includes(request.method)) {
-      return NextResponse.json(
-        { error: '' },
-        { status: 405 }
-      )
+      return apiError('METHOD_NOT_ALLOWED', 'Method not allowed.', 405)
     }
     
     // POSTContent-Type
     if (request.method === 'POST') {
       const contentType = request.headers.get('content-type')
       if (!contentType?.includes('application/json')) {
-        return NextResponse.json(
-          { error: 'Content-Typeapplication/json' },
-          { status: 400 }
-        )
+        return apiError('UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json.', 400)
       }
     }
 
@@ -153,6 +183,14 @@ export function proxy(request: NextRequest) {
   Object.entries(rateLimitHeaders).forEach(([key, value]) => {
     response.headers.set(key, value)
   })
+
+  if (!sessionValidation.valid) {
+    const refreshedToken = await createAnonymousSessionToken(request)
+    response.cookies.set({
+      ...anonymousSessionCookieOptions(),
+      value: refreshedToken,
+    })
+  }
   
   return response
 }

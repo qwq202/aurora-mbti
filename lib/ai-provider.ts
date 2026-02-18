@@ -1,5 +1,6 @@
 import { AI_PROVIDER_MAP, type AIProviderId, type AIProviderSpec } from './ai-provider-defs'
 import { type AIConfigInput } from './ai-config'
+import { readStoredAIConfig } from './ai-settings-store'
 
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant'
@@ -124,7 +125,8 @@ function normalizeBaseUrl(provider: AIProviderId, baseUrl: string, defaultBaseUr
 }
 
 export function resolveAIConfig(input?: AIConfigInput): AIResolvedConfig {
-  const provider = (input?.provider || readEnv('AI_PROVIDER') || 'openai') as AIProviderId
+  const storedConfig = readStoredAIConfig()
+  const provider = (input?.provider || storedConfig?.provider || readEnv('AI_PROVIDER') || 'openai') as AIProviderId
   const spec = getProviderSpec(provider)
 
   const envBaseUrl = readEnv('AI_BASE_URL') || readEnv(ENV_URL_BY_PROVIDER[spec.id])
@@ -134,13 +136,13 @@ export function resolveAIConfig(input?: AIConfigInput): AIResolvedConfig {
     readEnv('AI_API_KEY') ||
     (spec.id === 'openai' || spec.id === 'openai-responses' ? readEnv('OPENAI_API_KEY') : undefined)
 
-  const rawBaseUrl = (input?.baseUrl || envBaseUrl || spec.defaultBaseUrl || '').replace(/\/+$/, '')
+  const rawBaseUrl = (input?.baseUrl || storedConfig?.baseUrl || envBaseUrl || spec.defaultBaseUrl || '').replace(/\/+$/, '')
   const baseUrl = normalizeBaseUrl(spec.id, rawBaseUrl, spec.defaultBaseUrl)
-  const model = input?.model || envModel || spec.defaultModel || ''
-  const apiKey = input?.apiKey || envApiKey
-  const openrouterSiteUrl = input?.openrouterSiteUrl || readEnv('OPENROUTER_SITE_URL')
-  const openrouterAppName = input?.openrouterAppName || readEnv('OPENROUTER_APP_NAME')
-  const anthropicVersion = input?.anthropicVersion || readEnv('ANTHROPIC_VERSION') || '2023-06-01'
+  const model = input?.model || storedConfig?.model || envModel || spec.defaultModel || ''
+  const apiKey = input?.apiKey || storedConfig?.apiKey || envApiKey
+  const openrouterSiteUrl = input?.openrouterSiteUrl || storedConfig?.openrouterSiteUrl || readEnv('OPENROUTER_SITE_URL')
+  const openrouterAppName = input?.openrouterAppName || storedConfig?.openrouterAppName || readEnv('OPENROUTER_APP_NAME')
+  const anthropicVersion = input?.anthropicVersion || storedConfig?.anthropicVersion || readEnv('ANTHROPIC_VERSION') || '2023-06-01'
 
   return {
     provider: spec.id,

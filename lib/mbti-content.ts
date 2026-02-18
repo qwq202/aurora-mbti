@@ -1,6 +1,7 @@
 import type { MbtiCelebrities, MbtiTypeGroup, MbtiTypeInfo, Question } from './mbti-types'
 import { QUESTIONS as QUESTIONS_ZH } from './mbti-questions'
 import { QUESTIONS as QUESTIONS_EN } from './mbti-questions.en'
+import { QUESTIONS as QUESTIONS_JA } from './mbti-questions.ja'
 import {
   TYPE_INFO as TYPE_INFO_ZH,
   TYPE_GROUPS as TYPE_GROUPS_ZH,
@@ -13,6 +14,12 @@ import {
   CELEBRITIES as CELEBRITIES_EN,
   UNKNOWN_TYPE as UNKNOWN_TYPE_EN,
 } from './mbti-type-data.en'
+import {
+  TYPE_INFO as TYPE_INFO_JA,
+  TYPE_GROUPS as TYPE_GROUPS_JA,
+  CELEBRITIES as CELEBRITIES_JA,
+  UNKNOWN_TYPE as UNKNOWN_TYPE_JA,
+} from './mbti-type-data.ja'
 
 export type MbtiContent = {
   questions: Question[]
@@ -30,6 +37,16 @@ export function getMbtiContent(locale?: string): MbtiContent {
       typeGroups: TYPE_GROUPS_EN,
       celebrities: CELEBRITIES_EN,
       unknownType: UNKNOWN_TYPE_EN,
+    }
+  }
+
+  if (locale === 'ja') {
+    return {
+      questions: QUESTIONS_JA,
+      typeInfo: TYPE_INFO_JA,
+      typeGroups: TYPE_GROUPS_JA,
+      celebrities: CELEBRITIES_JA,
+      unknownType: UNKNOWN_TYPE_JA,
     }
   }
 

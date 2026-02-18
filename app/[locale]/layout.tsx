@@ -3,6 +3,7 @@ import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { LocaleHtmlLang } from '@/components/locale-html-lang';
+import { CookieConsentBanner } from '@/components/cookie-consent-banner';
 
 export default async function LocaleLayout({
   children,
@@ -29,6 +30,7 @@ export default async function LocaleLayout({
     <NextIntlClientProvider messages={messages}>
       <LocaleHtmlLang />
       {children}
+      <CookieConsentBanner />
     </NextIntlClientProvider>
   );
 }

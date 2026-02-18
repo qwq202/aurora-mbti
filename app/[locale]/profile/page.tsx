@@ -162,7 +162,7 @@ export default function ProfilePage() {
                       placeholder={t('basicInfo.namePlaceholder')}
                       value={profile.name}
                       onChange={(e) => updateProfile("name", e.target.value)}
-                      className="h-14 w-full bg-zinc-50 border-transparent focus:bg-white focus:border-zinc-200 transition-all rounded-md px-4 py-2 text-sm leading-none font-medium"
+                      className="h-9 w-full bg-zinc-50 border-transparent  rounded-m font-medium"
                     />
                   </div>
 

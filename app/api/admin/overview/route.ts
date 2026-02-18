@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { AI_PROVIDER_SPECS } from '@/lib/ai-provider-defs'
 import { isAdminAuthorized, isAdminConfigured } from '@/lib/admin-auth'
 import { resolveAIConfig } from '@/lib/ai-provider'
+import { readStoredAIConfig } from '@/lib/ai-settings-store'
+import { apiError, apiOk } from '@/lib/api-response'
 
 function maskValue(value?: string) {
   if (!value) return ''
@@ -11,20 +13,17 @@ function maskValue(value?: string) {
 
 export async function GET(request: NextRequest) {
   if (!isAdminConfigured()) {
-    return NextResponse.json(
-      { success: false, error: 'ADMIN_TOKEN is not configured on server.' },
-      { status: 503 }
-    )
+    return apiError('NOT_CONFIGURED', 'ADMIN_TOKEN is not configured on server.', 503)
   }
 
   if (!isAdminAuthorized(request)) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return apiError('UNAUTHORIZED', 'Unauthorized', 401)
   }
 
   const aiConfig = resolveAIConfig()
+  const storedConfig = readStoredAIConfig()
 
-  return NextResponse.json({
-    success: true,
+  return apiOk({
     overview: {
       runtime: {
         nodeEnv: process.env.NODE_ENV || '',
@@ -38,6 +37,7 @@ export async function GET(request: NextRequest) {
         model: aiConfig.model,
         apiKeySet: Boolean(aiConfig.apiKey),
         apiKeyMasked: maskValue(aiConfig.apiKey),
+        source: storedConfig ? 'panel' : 'env',
       },
       security: {
         debugApiLogs: process.env.DEBUG_API_LOGS === 'true',
@@ -50,6 +50,6 @@ export async function GET(request: NextRequest) {
         defaultModel: item.defaultModel || '',
         requiresApiKey: item.requiresApiKey !== false,
       })),
-    },
+    }
   })
 }

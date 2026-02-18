@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
+import { apiError } from '@/lib/api-response'
 
 type NDJSONQuestion = {
   question: string
@@ -7,7 +8,7 @@ type NDJSONQuestion = {
   type: string
 }
 
-type NDJSONSSEEvent = {
+type NDJSONEvent = {
   type: 'start' | 'progress' | 'question' | 'complete' | 'success' | 'error'
   message?: string
   total?: number
@@ -60,9 +61,8 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
       async start(controller) {
         const encoder = new TextEncoder()
         
-        //  SSE
-        function pushSSE(data: NDJSONSSEEvent) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        function pushNDJSON(data: NDJSONEvent) {
+          controller.enqueue(encoder.encode(`${JSON.stringify(data)}\n`))
         }
 
         try {
@@ -74,7 +74,7 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
           const generatedQuestions: NDJSONQuestion[] = []
           
           //  
-          pushSSE({
+          pushNDJSON({
             type: 'start',
             message: '',
             total: questionCount,
@@ -117,7 +117,7 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
                   generatedQuestions.push(questionObj)
                   
                   //  
-                  pushSSE({
+                  pushNDJSON({
                     type: 'progress',
                     current: currentQuestionCount,
                     total: questionCount,
@@ -126,7 +126,7 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
                   })
                   
                   //  
-                  pushSSE({
+                  pushNDJSON({
                     type: 'question',
                     question: questionObj,
                     index: currentQuestionCount,
@@ -156,7 +156,7 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
           }
 
           //  
-          pushSSE({
+          pushNDJSON({
             type: 'success',
             message: `AI${currentQuestionCount}`,
             questions: generatedQuestions,
@@ -168,7 +168,7 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
           console.error('NDJSON:', error)
           
           //  
-          pushSSE({
+          pushNDJSON({
             type: 'error',
             message: 'AI',
             suggestion: 'retry',
@@ -182,17 +182,14 @@ ${existingQuestions.length > 0 ? `: ${existingQuestions.map((q) => q.question).f
 
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        'Connection': 'keep-alive'
       }
     })
 
   } catch (error) {
     console.error('NDJSON API:', error)
-    return Response.json({ 
-      error: 'API',
-      message: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+    return apiError('INTERNAL_ERROR', 'NDJSON API failed', 500, error instanceof Error ? error.message : String(error))
   }
 }

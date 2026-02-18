@@ -1,0 +1,578 @@
+{
+  "common": {
+    "startTest": "テストの開始",
+    "personalityTypes": "性格タイプ",
+    "history": "歴史",
+    "profile": "プロフィール",
+    "about": "について",
+    "back": "戻る",
+    "next": "次",
+    "previous": "前の",
+    "submit": "提出する",
+    "cancel": "キャンセル",
+    "confirm": "確認する",
+    "save": "保存",
+    "saved": "保存されました",
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "success": "成功",
+    "delete": "消去",
+    "edit": "編集",
+    "close": "近い",
+    "continue": "続く",
+    "skip": "スキップ",
+    "proceed": "進む",
+    "reset": "リセット",
+    "clear": "クリア",
+    "language": "言語",
+    "languageOptions": {
+      "zh": "中文",
+      "en": "English",
+      "ja": "日本語"
+    },
+    "tags": {
+      "auto": "オート",
+      "reset": "リセット",
+      "resetAll": "すべてリセット",
+      "continue": "続く",
+      "cancel": "キャンセル",
+      "proceed": "進む",
+      "skip": "スキップ"
+    }
+  },
+  "header": {
+    "nav": {
+      "types": "性格タイプ",
+      "test": "テストの開始",
+      "history": "歴史",
+      "profile": "プロフィール"
+    },
+    "github": "GitHub リポジトリ"
+  },
+  "footer": {
+    "copyright": "© 2026 AURORA MBTI · AI を活用した性格分析プラットフォーム",
+    "tagline": "AI による科学分析を通じて本当の自分を発見し、キャリアとライフパスを最適化します。",
+    "taglineShort": "AIによる科学的分析を通じて、本当の自分を発見しましょう。",
+    "explore": "探検する",
+    "resources": "リソース",
+    "docs": "ドキュメント",
+    "madeWith": "自己発見のために❤️で作りました",
+    "links": {
+      "types": "性格タイプ",
+      "history": "私の歴史",
+      "about": "について"
+    }
+  },
+  "cookieConsent": {
+    "title": "クッキーに関する通知",
+    "description": "当社は、同意状態と言語設定のために必須の Cookie のみを使用します。管理者ログイン Cookie は管理コンソールでのみ使用されます。通常のユーザーはサインインする必要はありません。",
+    "learnMore": "もっと詳しく知る",
+    "accept": "受け入れて続行します"
+  },
+  "cookiePolicy": {
+    "hero": {
+      "label": "クッキー / プライバシー",
+      "title": "クッキーポリシー",
+      "description": "このページでは、このサイトでどのような Cookie が使用されているか、使用される理由、および保存期間について説明します。通常のユーザーはログインする必要はありません。管理ログイン Cookie は管理コンソール専用です。"
+    },
+    "table": {
+      "title": "クッキーの在庫",
+      "description": "現在、Aurora MBTI では次の必須 Cookie が使用されています。",
+      "columns": {
+        "name": "名前",
+        "purpose": "目的",
+        "duration": "保持"
+      },
+      "rows": {
+        "aurora_cookie_consent": {
+          "name": "aurora_cookie_consent",
+          "purpose": "Cookie 通知が繰り返し表示されないように、Cookie 通知を受け入れたかどうかを保存します。",
+          "duration": "1年"
+        },
+        "aurora_admin_token": {
+          "name": "aurora_admin_token",
+          "purpose": "管理者セッション検証は、管理者がバックオフィスにアクセスする場合にのみ使用されます。",
+          "duration": "セッション"
+        },
+        "NEXT_LOCALE": {
+          "name": "NEXT_LOCALE",
+          "purpose": "言語設定を記憶します (中国語/英語)。",
+          "duration": "フレームワークのデフォルト"
+        }
+      }
+    },
+    "management": {
+      "title": "クッキーの管理方法",
+      "description": "ブラウザの設定でこのサイトの Cookie をクリアできます。クリア後​​、言語設定はリセットされます。あなたが管理者の場合、バックオフィスのログインセッションも期限切れになります。"
+    },
+    "update": {
+      "title": "ポリシーの更新",
+      "description": "Cookie の使用が変更された場合、このページは更新されます。大きな変更点は製品内で明確に強調表示されます。"
+    }
+  },
+  "home": {
+    "hero": {
+      "subtitle": "Aurora MBTI / AI を活用した性格分析",
+      "title": "あなたの発見",
+      "titleHighlight": "性格タイプ",
+      "description": "AI を活用したインテリジェントな分析を通じて、自分の性格特性、強み、成長の機会について深い洞察を得ることができます。",
+      "cta": "テストの開始"
+    },
+    "methodology": {
+      "label": "01 / 四次元性格理論",
+      "title": "16 の性格タイプ",
+      "description": "4 つの次元ペア (Ni-Se、Ne-Si、Ti-Fe、Te-Fi) を備えたユング心理学の理論に基づいており、INTJ から ESFP までの 16 の異なる性格タイプが導き出されます。",
+      "link": "すべてのタイプを見る →"
+    },
+    "technology": {
+      "label": "02 / AI分析",
+      "title": "深い洞察",
+      "description": "高度な AI テクノロジーを通じて、個人に合わせたキャリア アドバイス、対人関係の洞察、個人の成長の方向性を提供します。"
+    },
+    "features": {
+      "scientific": {
+        "title": "科学的に厳密",
+        "description": "ユング心理学と心理測定の原則に基づいています。"
+      },
+      "personalized": {
+        "title": "パーソナライズされたエクスペリエンス",
+        "description": "背景情報に基づいてカスタマイズされた分析。"
+      },
+      "intelligent": {
+        "title": "インテリジェントな洞察",
+        "description": "AI テクノロジーを組み合わせて、深い性格洞察を生成します。"
+      }
+    },
+    "cta": {
+      "title": "本当の自分を発見する準備はできていますか?",
+      "description": "5,420 人を超えるユーザーが、Aurora MBTI を通じて独自の強みを発見しました。",
+      "button": "無料テストを開始する"
+    }
+  },
+  "profile": {
+    "hero": {
+      "label": "ステップ01 / 個人プロフィール",
+      "title": "教えてください",
+      "titleHighlight": "あなたについて",
+      "description": "この情報を使用して AI 分析をパーソナライズし、より正確な性格評価と推奨事項を提供します。"
+    },
+    "basicInfo": {
+      "label": "01 / 基本情報",
+      "title": "あなたの経歴",
+      "name": "名前 *",
+      "namePlaceholder": "あなたの名前を入力してください",
+      "gender": "性別 *",
+      "genderPlaceholder": "性別を選択してください",
+      "genderOptions": {
+        "male": "男",
+        "female": "女性",
+        "other": "他の",
+        "preferNotToSay": "言わないほうがいい"
+      },
+      "age": "年 *",
+      "agePlaceholder": "18歳以上",
+      "ageSuffix": "歳",
+      "occupation": "職業 *",
+      "occupationPlaceholder": "職業を選択してください",
+      "occupationOptions": {
+        "student": "学生",
+        "highSchool": "高校生",
+        "middleSchool": "中学生",
+        "elementary": "小学生",
+        "engineer": "エンジニア",
+        "designer": "デザイナー",
+        "marketing": "マーケティング",
+        "sales": "セールス/マーケティング",
+        "hr": "人事・人事",
+        "management": "管理",
+        "consultant": "コンサルタント",
+        "other": "他の"
+      },
+      "education": "教育レベル",
+      "educationPlaceholder": "教育レベルを選択してください",
+      "educationOptions": {
+        "juniorHigh": "中学生以下",
+        "highSchool": "高校・専門学校",
+        "college": "準学士号",
+        "bachelor": "学士号",
+        "master": "修士号",
+        "phd": "博士",
+        "preferNotToSay": "言わないほうがいい"
+      },
+      "relationship": "関係ステータス",
+      "relationshipPlaceholder": "関係ステータスを選択してください",
+      "relationshipOptions": {
+        "single": "シングル",
+        "dating": "交際中",
+        "married": "既婚",
+        "other": "他の",
+        "preferNotToSay": "言わないほうがいい"
+      }
+    },
+    "preferences": {
+      "label": "02 / 個人的な好み",
+      "title": "自分のスタイルを理解する",
+      "interests": "興味のあること",
+      "interestsPlaceholder": "プログラミング、読書、旅行など、あなたの興味について説明してください (オプション)",
+      "socialPreference": "社会的嗜好",
+      "socialPreferencePlaceholder": "社会的な好みを選択してください",
+      "socialPreferenceOptions": {
+        "quiet": "物静か/内向的",
+        "social": "社交的/社交的",
+        "balanced": "バランスの取れた"
+      },
+      "stressLevel": "ストレスレベル",
+      "stressLevelPlaceholder": "現在のストレスレベルを選択してください",
+      "stressLevelOptions": {
+        "low": "低い/リラックスした",
+        "medium": "中/普通",
+        "high": "高い/忙しい"
+      },
+      "workStyle": "働き方",
+      "workStylePlaceholder": "働き方を選ぶ",
+      "workStyleOptions": {
+        "individual": "独立した仕事",
+        "team": "チームのコラボレーション",
+        "mixed": "混合モード"
+      }
+    },
+    "privacy": {
+      "title": "あなたのプライバシーは重要です",
+      "description": "当社はお客様の情報を分析エクスペリエンスを向上させる目的でのみ使用し、第三者と共有することはありません。",
+      "localStorage": "すべてのデータはブラウザーにローカルに保存されます。当社はお客様の個人情報をアップロードまたは保存しません。",
+      "sensitiveInfo": "機密情報には、名前、年齢、性別、職業、学歴、交際状況、その他の個人データが含まれます。",
+      "control": "ローカルに保存されたデータはいつでも消去できるため、個人情報を完全に制御できます。"
+    },
+    "actions": {
+      "save": "保存",
+      "saved": "✓ 保存済み",
+      "nextStep": "次のステップ: テストの開始"
+    }
+  },
+  "testMode": {
+    "hero": {
+      "label": "01 / テストモードの選択",
+      "title": "カスタマイズ",
+      "titleHighlight": "あなたのテスト",
+      "description": "こんにちは、{name} さん。ご自身に合ったテスト モードを選択してください。 AI はあなたのプロフィールに基づいてパーソナライズされた質問を生成します。",
+      "back": "戻る"
+    },
+    "resume": {
+      "title": "不完全なテストが検出されました",
+      "description": "{回答済み} / {合計} 個の質問に回答しました ({モード})",
+      "modeAI": "AIモード",
+      "modeStandard": "標準モード",
+      "continue": "テストを続行",
+      "reset": "放棄してリセットする"
+    },
+    "generating": {
+      "title": "AI質問生成",
+      "progress": "{percent}% ({current}/{total})",
+      "description": "あなたの個人プロフィールに基づいて潜在的な性格の側面を分析しています..."
+    },
+    "modes": {
+      "ai30": {
+        "title": "AIクイックモード",
+        "count": "30",
+        "time": "5～10分",
+        "description": "AI によって生成された主要な質問により、迅速な性格プロファイリングが可能になります。"
+      },
+      "ai60": {
+        "title": "AIディープモード",
+        "count": "60",
+        "time": "15～20分",
+        "description": "速度と精度のバランスが取れた AI は、あなたの職業と背景を深く掘り下げます。"
+      },
+      "ai120": {
+        "title": "AIアルティメットモード",
+        "count": "120",
+        "time": "25～35分",
+        "description": "非常に高精度の寸法評価による最も包括的な AI 分析。"
+      },
+      "standard": {
+        "title": "標準モード",
+        "description": "従来の MBTI 質問セットを使用する"
+      }
+    },
+    "selected": "選択済み",
+    "errors": {
+      "aiGeneration": "AI 質問の生成に失敗しました"
+    },
+    "actions": {
+      "startGenerating": "質問の生成を開始する",
+      "initializing": "初期化中...",
+      "note": "AI がパーソナライズされた質問を生成するのに約 1 ～ 2 分かかります"
+    },
+    "followup": {
+      "prompt": {
+        "title": "詳細を追加しますか?",
+        "description": "AI は、より正確な質問を生成するために、あなたについてさらに詳しく学習したいと考えています。これには 1 分しかかかりません。",
+        "skip": "スキップ",
+        "proceed": "進む"
+      },
+      "form": {
+        "title": "AIフォローアップ",
+        "description": "より正確なプロフィールを得るために、次の質問に簡単に答えてください。",
+        "required": "必須",
+        "shortPlaceholder": "簡単な答え...",
+        "longPlaceholder": "詳しく説明してください...",
+        "skip": "直接生成",
+        "submit": "送信して生成する"
+      }
+    },
+    "resetConfirm": {
+      "title": "進行状況をリセットする",
+      "description": "現在のテストの進行状況をリセットしてもよろしいですか?回答された質問はすべて失われます。",
+      "confirm": "リセットの確認",
+      "cancel": "キャンセル"
+    }
+  },
+  "test": {
+    "hero": {
+      "label": "01 / テスト中",
+      "progress": "{パーセント}％",
+      "progressLabel": "完了の進捗状況",
+      "questionInfo": "質問 {現在} / {合計} {モード}",
+      "modeStandard": "(標準モード)",
+      "modeAI": "(AI強化モード)",
+      "quickFill": "クイックフィル",
+      "reset": "進行状況をリセットする"
+    },
+    "questionLabel": "質問 {現在} / {合計}",
+    "likert": {
+      "labels": [
+        "全く同意しません",
+        "同意しない",
+        "やや同意しない",
+        "中性",
+        "少し同意する",
+        "同意する",
+        "強く同意する"
+      ]
+    },
+    "guidelines": {
+      "label": "// ガイドライン",
+      "text": "最初の反応に基づいて答えてください。正解も不正解もありません。\nこれは、最も正確な MBTI 性格プロファイルを取得するのに役立ちますので、正直でいてください。"
+    },
+    "actions": {
+      "previous": "前の",
+      "next": "次",
+      "submit": "結果を送信する"
+    },
+    "dialogs": {
+      "repeat": {
+        "title": "繰り返しの選択が検出されました",
+        "description": "5 つの連続した質問に対して同じ回答を選択しました。すぐに終わらせるのではなく、自分の本当の考えに基づいて回答するようにしてください。",
+        "continue": "続く"
+      },
+      "quickFill": {
+        "title": "クイックフィルニュートラルオプション?",
+        "description": "残りの質問をすべて「中立」と入力してもよろしいですか?これにより、結果の精度が大幅に低下します。",
+        "cancel": "キャンセル",
+        "proceed": "記入の確認"
+      },
+      "reset": {
+        "title": "リセットテスト",
+        "description": "現在の進行状況をすべてリセットしてもよろしいですか?",
+        "confirm": "リセットの確認",
+        "cancel": "キャンセル"
+      }
+    }
+  },
+  "result": {
+    "hero": {
+      "label": "01 / 結果",
+      "saveToHistory": "履歴に保存",
+      "share": "結果を共有する"
+    },
+    "dimensions": {
+      "label": "// 性格次元分析",
+      "ei": {
+        "title": "外向性",
+        "left": "E 外向的",
+        "right": "私は内向的です"
+      },
+      "sn": {
+        "title": "感知",
+        "left": "Sセンシング",
+        "right": "N 直感的"
+      },
+      "tf": {
+        "title": "判定",
+        "left": "T思考",
+        "right": "F フィーリング"
+      },
+      "jp": {
+        "title": "ライフスタイル",
+        "left": "J 審査",
+        "right": "P 知覚する"
+      }
+    },
+    "radar": {
+      "label": "// 性格レーダーチャート",
+      "current": "結果",
+      "compare": "{タイプ}"
+    },
+    "aiAnalysis": {
+      "label": "AI性格分析",
+      "generate": "AI分析の生成",
+      "generating": "🤖 AIが分析中...",
+      "summary": {
+        "label": "// 性格の概要"
+      },
+      "career": {
+        "label": "// キャリア開発"
+      },
+      "growth": {
+        "label": "// 個人の成長"
+      },
+      "actions": {
+        "regenerate": "分析の再生成",
+        "copy": "コピー"
+      },
+      "regenerateDialog": {
+        "title": "分析の再生成",
+        "description": "最新の AI モデルを使用してあなたの性格分析を再生成します。これにより、以前の分析結果が上書きされます。",
+        "confirm": "再生の確認",
+        "cancel": "キャンセル"
+      }
+    },
+    "traits": {
+      "label": "// 性格特性",
+      "strengths": "強み",
+      "communication": "コミュニケーションスタイル"
+    },
+    "empty": {
+      "label": "00 / 結果が見つかりませんでした",
+      "title": "表示する結果がありません",
+      "description": "このブラウザでは結果が見つかりませんでした。もう一度テストを受けてみるか、履歴を保存している場合は履歴を確認してください。"
+    },
+    "cta": {
+      "title": "もう一度テストしたいですか?",
+      "retest": "再受験",
+      "home": "ホームに戻る"
+    },
+    "copied": "クリップボードにコピーされました"
+  },
+  "history": {
+    "hero": {
+      "label": "01 / テスト履歴",
+      "title": "あなたの旅",
+      "titleHighlight": "一目でわかる",
+      "description": "過去の MBTI テスト結果をすべて表示し、性格の変化を比較し、成長を追跡します。",
+      "clearAll": "履歴をクリアする"
+    },
+    "empty": {
+      "title": "まだテスト記録がありません",
+      "description": "最初の MBTI 性格テストを開始し、発見の旅を記録してください。",
+      "cta": "テストの開始"
+    },
+    "entry": {
+      "modeAI": "AI が生成",
+      "modeStandard": "標準テスト",
+      "compare": "比較に使用",
+      "delete": "消去"
+    },
+    "cta": {
+      "title": "自分の個性を探求し続ける",
+      "description": "すべてのテストは自己認識の機会です",
+      "button": "新しいテストを開始する"
+    },
+    "clearConfirm": {
+      "title": "履歴をクリアする",
+      "description": "これにより、すべてのテスト記録が削除されます。この操作は元に戻すことができません。",
+      "confirm": "クリアの確認",
+      "cancel": "キャンセル"
+    },
+    "saved": "履歴に保存されました",
+    "deleted": "削除されました",
+    "cleared": "履歴がクリアされました",
+    "clearFailed": "履歴のクリアに失敗しました",
+    "compareFailed": "比較の設定に失敗しました",
+    "compareSet": "比較として設定: {type}"
+  },
+  "types": {
+    "hero": {
+      "label": "01 / 性格タイプライブラリ",
+      "title": "16",
+      "titleHighlight": "性格プロフィール",
+      "description": "各性格タイプの中核的な特徴、強み、代表的な人物像を深く掘り下げます。人間の行動の多様性を探ります。"
+    },
+    "groupLabel": "グループ {インデックス} / {コード}",
+    "groups": {
+      "nt": {
+        "title": "有理数",
+        "code": "ノーザンテリトリー",
+        "description": "戦略的で好奇心旺盛で、客観性と論理性を重視します。彼らは生まれつきの思想家でありリーダーです。"
+      },
+      "nf": {
+        "title": "理想主義者",
+        "code": "NF",
+        "description": "思いやりを持ち、意味を追求し、個人の成長を大切にします。彼らは深い洞察力とインスピレーションを与える人物です。"
+      },
+      "sj": {
+        "title": "ガーディアン",
+        "code": "SJ",
+        "description": "実用的で安定しており、秩序と伝統を大切にしています。彼らは社会の基盤であり、信頼できる実行者です。"
+      },
+      "sp": {
+        "title": "探検家",
+        "code": "SP",
+        "description": "柔軟で自発的で価値ある感覚体験。彼らは行動志向で、緊急事態に対処し、人生を楽しむのが得意です。"
+      },
+      "representatives": "代表的な数値"
+    },
+    "cta": {
+      "title": "発見する準備ができています",
+      "titleHighlight": "あなたのタイプは？",
+      "description": "AI を活用した詳細なテストを通じて、独自のパーソナライズされた分析を取得します。",
+      "button": "今すぐテストを開始"
+    }
+  },
+  "about": {
+    "hero": {
+      "label": "01 / 舞台裏",
+      "title": "謝辞",
+      "titleHighlight": "AI教師",
+      "description": "このサイトは以下のAI先生が協力して作成しました。アーキテクチャのロジックから視覚的な美学に至るまで、コードとピクセルのすべての行が彼らの知恵を体現しています。ここに心より感謝の意を表します。",
+      "credit": "このページは Gemini 3.0 Flash Teacher によって作成されました",
+      "github": "GitHub リポジトリ"
+    },
+    "contributions": {
+      "label": "02 / 教育と指導",
+      "title": "AIメンターの知恵",
+      "description": "このサイトを構想から現実に変えるために、さまざまな段階でさまざまな AI 教師の指導と貢献に感謝します。",
+      "initial": {
+        "title": "初期プロジェクトの枠組み",
+        "description": "プロジェクトの最初のページと基本的なスケルトンは、v0 の生成機能からインスピレーションを受け、サポートされています。"
+      },
+      "mvp": {
+        "title": "MVP モデル",
+        "description": "最も優れたトップ モデル (Most Valuable Player) は、GPT 5.2 Codex、Claude 4.5 Opus、および Gemini 3 Pro によって共同で表彰されます。"
+      },
+      "core": {
+        "title": "コアモジュールの設計",
+        "description": "コア モジュールと主要なインタラクション ソリューションは主に Windsurf の Claude 4 Sonnet から提供されています。"
+      },
+      "ui": {
+        "title": "UIデザイン",
+        "description": "全体的な UI ビジュアルとレイアウトの最適化は、Gemini 3 Flash と Gemini 3 Pro による提案と反復から生まれています。"
+      },
+      "refactor": {
+        "title": "プロジェクトの後期リファクタリング",
+        "description": "後期の構造編成とリファクタリングは、Codex CLI、Claude Code、Claude 4.5 シリーズと GPT 5.2 Codex in Cursor によって共同で完了しました。"
+      }
+    },
+    "matrix": {
+      "label": "03 / 完全なリスト",
+      "title": "AIマトリックス",
+      "description": "Aurora MBTI の継続的な進化をサポートする完全なテクノロジー エコシステム。",
+      "quote": "道具の境界は思考の境界です。ここでは境界線を排除します。",
+      "quoteLabel": "制作メッセージ",
+      "models": "モデルライブラリ",
+      "tools": "ツールチェーン",
+      "modelsCount": "{count} モデル",
+      "toolsCount": "{count} 個のツール"
+    }
+  }
+}

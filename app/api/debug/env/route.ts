@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { debugError, debugLog } from '@/lib/logging'
+import { apiError, apiOk } from '@/lib/api-response'
 
 /**
  *  API - 
@@ -7,7 +8,7 @@ import { debugError, debugLog } from '@/lib/logging'
 export async function GET(request: NextRequest) {
   // 
   if (process.env.NODE_ENV === 'production' || process.env.DEBUG_API_LOGS !== 'true') {
-    return Response.json({ error: '' }, { status: 403 })
+    return apiError('FORBIDDEN', 'Debug endpoint is disabled.', 403)
   }
 
   debugLog(' ...')
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   debugLog(' :', envCheck)
 
-  return Response.json({
+  return apiOk({
     status: 'success',
     environment: envCheck,
     recommendations: {
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   // 
   if (process.env.NODE_ENV === 'production' || process.env.DEBUG_API_LOGS !== 'true') {
-    return Response.json({ error: '' }, { status: 403 })
+    return apiError('FORBIDDEN', 'Debug endpoint is disabled.', 403)
   }
 
   debugLog(' OpenAI...')
@@ -91,17 +92,13 @@ export async function POST(request: NextRequest) {
         body: responseText
       })
 
-      return Response.json({
-        status: 'error',
-        error: `OpenAI API: ${response.status}`,
-        details: responseText
-      }, { status: 500 })
+      return apiError('UPSTREAM_ERROR', `OpenAI API: ${response.status}`, 502, responseText)
     }
 
     const responseData = JSON.parse(responseText) as { model?: string; choices?: unknown[]; usage?: unknown }
     debugLog(' OpenAI API')
 
-    return Response.json({
+    return apiOk({
       status: 'success',
       message: 'OpenAI API',
       response_preview: {
@@ -114,9 +111,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     debugError(' OpenAI:', error)
     
-    return Response.json({
-      status: 'error',
-      error: error instanceof Error ? error.message : ''
-    }, { status: 500 })
+    return apiError('INTERNAL_ERROR', error instanceof Error ? error.message : '', 500)
   }
 }

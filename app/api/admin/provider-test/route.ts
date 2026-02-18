@@ -1,25 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { isAdminAuthorized, isAdminConfigured } from '@/lib/admin-auth'
 import { assertAIConfig, completeAIText, resolveAIConfig } from '@/lib/ai-provider'
 import { sanitizeAIConfig } from '@/lib/ai-config'
+import { apiError, apiOk } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
   if (!isAdminConfigured()) {
-    return NextResponse.json(
-      { success: false, error: 'ADMIN_TOKEN is not configured on server.' },
-      { status: 503 }
-    )
+    return apiError('NOT_CONFIGURED', 'ADMIN_TOKEN is not configured on server.', 503)
   }
 
   if (!isAdminAuthorized(request)) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return apiError('UNAUTHORIZED', 'Unauthorized', 401)
   }
 
   let payload: { config?: unknown } | null = null
   try {
     payload = await request.json()
   } catch {
-    return NextResponse.json({ success: false, error: 'Invalid JSON payload.' }, { status: 400 })
+    return apiError('BAD_REQUEST', 'Invalid JSON payload.', 400)
   }
 
   const safeConfig = sanitizeAIConfig(payload?.config)
@@ -28,10 +26,7 @@ export async function POST(request: NextRequest) {
   try {
     assertAIConfig(aiConfig)
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Invalid AI config' },
-      { status: 400 }
-    )
+    return apiError('BAD_REQUEST', error instanceof Error ? error.message : 'Invalid AI config', 400)
   }
 
   try {
@@ -45,21 +40,17 @@ export async function POST(request: NextRequest) {
       timeoutMs: 25000,
     })
 
-    return NextResponse.json({
-      success: true,
+    return apiOk({
       provider: aiConfig.provider,
       model: aiConfig.model,
       preview: content.slice(0, 120),
     })
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        provider: aiConfig.provider,
-        model: aiConfig.model,
-        error: error instanceof Error ? error.message : 'Provider request failed',
-      },
-      { status: 502 }
+    return apiError(
+      'UPSTREAM_ERROR',
+      error instanceof Error ? error.message : 'Provider request failed',
+      502,
+      `provider=${aiConfig.provider};model=${aiConfig.model}`
     )
   }
 }

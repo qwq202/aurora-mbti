@@ -209,19 +209,27 @@ GEMINI_BASE_URL=
 CORS_ALLOWED_ORIGINS=
 DEBUG_API_LOGS=false
 ADMIN_TOKEN=
+ANON_AUTH_SECRET=
 ```
 
 ## API 路由
 
+- 统一响应规范见：`docs/API.md`
+- 版本前缀兼容：`/api/v1/*`（自动重写到 `/api/*`）
 - `GET /api/health`：健康检查（AI 提供方与基础运行状态）
 - `GET /api/debug/env`：调试环境变量（仅 `NODE_ENV!=production` 且 `DEBUG_API_LOGS=true`）
 - `POST /api/generate-questions-*`：生成题目（结构化/流式/更稳健版本）
 - `POST /api/generate-analysis-*`：生成分析（结构化/流式/更稳健版本）
 - `POST /api/generate-profile-followups`：基于用户档案生成追问
+- 普通用户接口启用匿名会话鉴权（自动下发 `aurora_anon_session`，无需登录）
 - `POST /api/admin/login`：后台登录（设置 HttpOnly Cookie）
 - `POST /api/admin/logout`：后台退出
 - `GET /api/admin/overview`：后台概览数据（运行时、AI 配置、安全开关）
+- `GET /api/admin/ai-config`：读取当前 AI 配置（含来源：panel/env）
+- `POST /api/admin/ai-config`：保存 AI 配置到控制面板存储
 - `POST /api/admin/provider-test`：按当前/指定 provider 执行连通测试
+- `POST /api/auth/login`：已废弃（返回 `410`）
+- `POST /api/auth/logout`：已废弃（返回 `410`）
 
 ## 后台控制台（缝合方案）
 

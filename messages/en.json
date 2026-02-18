@@ -27,7 +27,8 @@
     "language": "Language",
     "languageOptions": {
       "zh": "中文",
-      "en": "EN"
+      "en": "English",
+      "ja": "日本語"
     },
     "tags": {
       "auto": "AUTO",
@@ -60,6 +61,53 @@
       "types": "Personality Types",
       "history": "My History",
       "about": "About"
+    }
+  },
+  "cookieConsent": {
+    "title": "Cookie Notice",
+    "description": "We only use essential cookies for consent state and language preference. Admin login cookies are used only in the admin console; regular users do not need to sign in.",
+    "learnMore": "Learn more",
+    "accept": "Accept and continue"
+  },
+  "cookiePolicy": {
+    "hero": {
+      "label": "COOKIE / PRIVACY",
+      "title": "Cookie Policy",
+      "description": "This page explains what cookies are used on this site, why they are used, and how long they are kept. Regular users do not need login; admin login cookies are only for the admin console."
+    },
+    "table": {
+      "title": "Cookie Inventory",
+      "description": "The following essential cookies are currently used by Aurora MBTI.",
+      "columns": {
+        "name": "Name",
+        "purpose": "Purpose",
+        "duration": "Retention"
+      },
+      "rows": {
+        "aurora_cookie_consent": {
+          "name": "aurora_cookie_consent",
+          "purpose": "Stores whether you accepted the cookie notice so it won't be shown repeatedly.",
+          "duration": "1 year"
+        },
+        "aurora_admin_token": {
+          "name": "aurora_admin_token",
+          "purpose": "Admin session validation used only when an administrator accesses the backoffice.",
+          "duration": "Session"
+        },
+        "NEXT_LOCALE": {
+          "name": "NEXT_LOCALE",
+          "purpose": "Remembers your language preference (Chinese/English).",
+          "duration": "Framework default"
+        }
+      }
+    },
+    "management": {
+      "title": "How to manage cookies",
+      "description": "You can clear this site's cookies in your browser settings. After clearing, language preference resets; if you are an admin, your backoffice login session also expires."
+    },
+    "update": {
+      "title": "Policy updates",
+      "description": "If cookie usage changes, this page will be updated. Major changes will be clearly highlighted in the product."
     }
   },
   "home": {

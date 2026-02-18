@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { validateQuestionsAPI } from '@/lib/api-validation'
 import { type StructuredQuestion, type StructuredQuestionsPayload } from '@/lib/ai-types'
 import { assertAIConfig, completeAIText, resolveAIConfig } from '@/lib/ai-provider'
+import { apiError, apiOk } from '@/lib/api-response'
 
 // API - 100%0
 export async function POST(request: NextRequest) {
@@ -176,8 +177,7 @@ questionid()text()dimension(EI/SN/TF/JP)agree(E/I/S/N/T/F/J/P)
     console.log(` : ${parsedResult.questions.length}, 0`)
 
     // 
-    return NextResponse.json({
-      success: true,
+    return apiOk({
       questions: parsedResult.questions,
       metadata: {
         ...parsedResult.metadata,
@@ -190,11 +190,12 @@ questionid()text()dimension(EI/SN/TF/JP)agree(E/I/S/N/T/F/J/P)
   } catch (error) {
     console.error(':', error)
     
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : '',
-      fallback_available: true
-    }, { status: 500 })
+    return apiError(
+      'INTERNAL_ERROR',
+      error instanceof Error ? error.message : '',
+      500,
+      'fallback_available=true'
+    )
   }
 }
 

@@ -27,7 +27,8 @@
     "language": "语言",
     "languageOptions": {
       "zh": "中文",
-      "en": "EN"
+      "en": "English",
+      "ja": "日本語"
     },
     "tags": {
       "auto": "AUTO",
@@ -60,6 +61,53 @@
       "types": "人格类型",
       "history": "我的历史",
       "about": "关于我们"
+    }
+  },
+  "cookieConsent": {
+    "title": "Cookie 使用说明",
+    "description": "我们仅使用必要 Cookie：记录你的同意状态与语言偏好。管理员后台会额外使用登录 Cookie，普通用户不需要登录。",
+    "learnMore": "查看详情",
+    "accept": "接受并继续"
+  },
+  "cookiePolicy": {
+    "hero": {
+      "label": "COOKIE / 隐私说明",
+      "title": "Cookie 说明",
+      "description": "本页面说明本站使用的 Cookie 类型、用途和保存时长。普通用户无需登录；仅管理员后台会使用登录 Cookie。"
+    },
+    "table": {
+      "title": "Cookie 清单",
+      "description": "以下是 Aurora MBTI 当前使用的必要 Cookie 项目。",
+      "columns": {
+        "name": "名称",
+        "purpose": "用途",
+        "duration": "保存时长"
+      },
+      "rows": {
+        "aurora_cookie_consent": {
+          "name": "aurora_cookie_consent",
+          "purpose": "记录你是否已接受 Cookie 提示，避免重复弹窗。",
+          "duration": "1 年"
+        },
+        "aurora_admin_token": {
+          "name": "aurora_admin_token",
+          "purpose": "管理后台登录态校验（仅管理员访问后台时使用）。",
+          "duration": "会话级"
+        },
+        "NEXT_LOCALE": {
+          "name": "NEXT_LOCALE",
+          "purpose": "记住你的语言偏好（中文/英文）。",
+          "duration": "框架默认策略"
+        }
+      }
+    },
+    "management": {
+      "title": "如何管理 Cookie",
+      "description": "你可以在浏览器设置中清除本站 Cookie。清除后语言偏好会重置；若你是管理员，后台登录状态也会失效。"
+    },
+    "update": {
+      "title": "政策更新",
+      "description": "当 Cookie 用途发生变化时，我们会更新本页面内容。重大变更会在页面中明确提示。"
     }
   },
   "home": {

@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server'
 import { validateQuestionsAPI } from '@/lib/api-validation'
-import { SECURITY_ERRORS } from '@/lib/security'
 import { debugError, debugLog, debugWarn } from '@/lib/logging'
 import { type Question } from '@/lib/mbti'
 import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
+import { apiError } from '@/lib/api-response'
 
 /**  heuristics */
 function heuristicsClean(s: string): string {
@@ -29,14 +29,7 @@ export async function POST(request: NextRequest) {
     if ('status' in validationResult) {
       return validationResult // 
     }
-    
-    if (!validationResult.valid) {
-      return Response.json(
-        { error: SECURITY_ERRORS.INVALID_INPUT },
-        { status: 400 }
-      )
-    }
-    
+
     const { questionCount, profile, existingQuestions, batchIndex } = validationResult.data
     
     debugLog(` : ${questionCount} - ${batchIndex + 1}`)
@@ -509,9 +502,6 @@ ${questionCount}`
 
   } catch (error) {
     debugError('API:', error)
-    return Response.json(
-      { error: '', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return apiError('INTERNAL_ERROR', error instanceof Error ? error.message : 'Unknown error', 500)
   }
 }

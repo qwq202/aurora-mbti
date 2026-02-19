@@ -1,14 +1,14 @@
 import { NextRequest } from 'next/server'
-import { isAdminAuthorized, isAdminConfigured } from '@/lib/admin-auth'
+import { isAuthAuthorized, isAuthConfigured } from '@/lib/auth'
 import { getStats, getDailyStats, StatsData } from '@/lib/stats'
 import { apiError, apiOk } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
-  if (!isAdminConfigured()) {
-    return apiError('NOT_CONFIGURED', 'ADMIN_TOKEN is not configured on server.', 503)
+  if (!isAuthConfigured()) {
+    return apiError('NOT_CONFIGURED', 'ADMIN_USERNAME and ADMIN_PASSWORD are not configured on server.', 503)
   }
 
-  if (!isAdminAuthorized(request)) {
+  if (!isAuthAuthorized(request)) {
     return apiError('UNAUTHORIZED', 'Unauthorized', 401)
   }
 

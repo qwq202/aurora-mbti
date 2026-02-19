@@ -1,32 +1,38 @@
 import { NextRequest } from 'next/server'
-import { ADMIN_COOKIE_NAME, isAdminConfigured, validateAdminToken } from '@/lib/admin-auth'
+import { AUTH_COOKIE_NAME, createAdminSessionToken, isAuthConfigured, validateCredentials } from '@/lib/auth'
 import { apiError, apiOk } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
-  if (!isAdminConfigured()) {
-    return apiError('NOT_CONFIGURED', 'ADMIN_TOKEN is not configured on server.', 503)
+  if (!isAuthConfigured()) {
+    return apiError('NOT_CONFIGURED', 'ADMIN_USERNAME and ADMIN_PASSWORD are not configured on server.', 503)
   }
 
-  let payload: { token?: string } | null = null
+  let payload: { username?: string; password?: string } | null = null
   try {
     payload = await request.json()
   } catch {
     return apiError('BAD_REQUEST', 'Invalid JSON payload.', 400)
   }
 
-  if (!validateAdminToken(payload?.token)) {
-    return apiError('UNAUTHORIZED', 'Invalid admin token.', 401)
+  if (!payload?.username || !payload?.password) {
+    return apiError('BAD_REQUEST', 'Username and password are required.', 400)
   }
+
+  if (!validateCredentials(payload.username, payload.password)) {
+    return apiError('UNAUTHORIZED', 'Invalid username or password.', 401)
+  }
+
+  const sessionToken = createAdminSessionToken(payload.username.trim())
 
   const response = apiOk()
   response.cookies.set({
-    name: ADMIN_COOKIE_NAME,
-    value: payload?.token?.trim() || '',
+    name: AUTH_COOKIE_NAME,
+    value: sessionToken,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 8,
+    maxAge: 60 * 60 * 8, // 8 小时
   })
 
   return response

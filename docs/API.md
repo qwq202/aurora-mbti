@@ -50,9 +50,9 @@
 ## 管理员鉴权
 
 - 仅使用 `/api/admin/*` 作为管理员接口。
-- 登录：`POST /api/admin/login`（请求体：`{ "token": "..." }`）
+- 登录：`POST /api/admin/login`（请求体：`{ "username": "...", "password": "..." }`）
 - 登出：`POST /api/admin/logout`
-- 管理员会话 Cookie：`aurora_admin_token`
+- 管理员会话 Cookie：`aurora_auth_session`
 - AI 配置读取：`GET /api/admin/ai-config`
 - AI 配置保存：`POST /api/admin/ai-config`（请求体：`{ "config": { ... } }`）
 - 配置优先级：控制面板保存配置 > 环境变量 > 提供方默认值

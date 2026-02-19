@@ -89,8 +89,8 @@
           "purpose": "Stores whether you accepted the cookie notice so it won't be shown repeatedly.",
           "duration": "1 year"
         },
-        "aurora_admin_token": {
-          "name": "aurora_admin_token",
+        "aurora_auth_session": {
+          "name": "aurora_auth_session",
           "purpose": "Admin session validation used only when an administrator accesses the backoffice.",
           "duration": "Session"
         },

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { AI_PROVIDER_SPECS } from '@/lib/ai-provider-defs'
-import { isAdminAuthorized, isAdminConfigured } from '@/lib/admin-auth'
+import { isAuthAuthorized, isAuthConfigured } from '@/lib/auth'
 import { resolveAIConfig } from '@/lib/ai-provider'
 import { readStoredAIConfig } from '@/lib/ai-settings-store'
 import { apiError, apiOk } from '@/lib/api-response'
@@ -12,11 +12,11 @@ function maskValue(value?: string) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isAdminConfigured()) {
-    return apiError('NOT_CONFIGURED', 'ADMIN_TOKEN is not configured on server.', 503)
+  if (!isAuthConfigured()) {
+    return apiError('NOT_CONFIGURED', 'ADMIN_USERNAME and ADMIN_PASSWORD are not configured on server.', 503)
   }
 
-  if (!isAdminAuthorized(request)) {
+  if (!isAuthAuthorized(request)) {
     return apiError('UNAUTHORIZED', 'Unauthorized', 401)
   }
 
@@ -39,10 +39,7 @@ export async function GET(request: NextRequest) {
         apiKeyMasked: maskValue(aiConfig.apiKey),
         source: storedConfig ? 'panel' : 'env',
       },
-      security: {
-        debugApiLogs: process.env.DEBUG_API_LOGS === 'true',
-        corsAllowedOrigins: process.env.CORS_ALLOWED_ORIGINS || '',
-      },
+      security: {},
       providers: AI_PROVIDER_SPECS.map((item) => ({
         id: item.id,
         label: item.label,

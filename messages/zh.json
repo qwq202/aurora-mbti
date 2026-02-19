@@ -89,8 +89,8 @@
           "purpose": "记录你是否已接受 Cookie 提示，避免重复弹窗。",
           "duration": "1 年"
         },
-        "aurora_admin_token": {
-          "name": "aurora_admin_token",
+        "aurora_auth_session": {
+          "name": "aurora_auth_session",
           "purpose": "管理后台登录态校验（仅管理员访问后台时使用）。",
           "duration": "会话级"
         },

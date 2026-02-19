@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { type UserProfile } from '@/lib/mbti'
 import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
+import { apiError } from '@/lib/api-response'
 
 // API - OpenAIstreamtoken
 export async function POST(request: NextRequest) {
@@ -173,9 +174,6 @@ ${questionCount}`
     
   } catch (error) {
     console.error(':', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '' },
-      { status: 500 }
-    )
+    return apiError('INTERNAL_ERROR', error instanceof Error ? error.message : 'Unknown error', 500)
   }
 }

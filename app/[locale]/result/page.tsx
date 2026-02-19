@@ -42,7 +42,21 @@ export default function ResultPage() {
   useEffect(() => {
     try {
       const savedResult = localStorage.getItem(RESULT_KEY)
-      if (savedResult) setResult(JSON.parse(savedResult) as MbtiResult)
+      if (savedResult) {
+        const parsed = JSON.parse(savedResult) as MbtiResult
+        setResult(parsed)
+        // 静默上报匿名测试记录
+        const savedProfile = localStorage.getItem(PROFILE_KEY)
+        void fetch('/api/results/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            result: parsed,
+            profile: savedProfile ? JSON.parse(savedProfile) : null,
+            locale,
+          }),
+        }).catch(() => {})
+      }
 
       const savedProfile = localStorage.getItem(PROFILE_KEY)
       if (savedProfile) setProfile(JSON.parse(savedProfile) as UserProfile)

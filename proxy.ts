@@ -54,10 +54,8 @@ const securityHeaders = [
 
 const intlMiddleware = createMiddleware(routing)
 
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
-  .split(',')
-  .map((item) => item.trim())
-  .filter(Boolean)
+// CORS 跨域来源：仅允许同源请求，不支持通过环境变量配置
+const allowedOrigins: string[] = []
 
 function resolveAllowedOrigin(request: NextRequest): string | null {
   const origin = request.headers.get('origin')
@@ -150,7 +148,7 @@ export async function proxy(request: NextRequest) {
     if (request.method === 'POST') {
       const contentType = request.headers.get('content-type')
       if (!contentType?.includes('application/json')) {
-        return apiError('UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json.', 400)
+        return apiError('UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json.', 415)
       }
     }
 

@@ -265,11 +265,11 @@ export const RATE_LIMITS = {
 
 // 
 export const SECURITY_ERRORS = {
-  INVALID_INPUT: '',
-  RATE_LIMIT: '',
-  UNAUTHORIZED: '',
-  INVALID_CONTENT: '',
-  REQUEST_TOO_LARGE: ''
+  INVALID_INPUT: '请求参数不合法。',
+  RATE_LIMIT: '请求过于频繁，请稍后重试。',
+  UNAUTHORIZED: '未授权访问。',
+  INVALID_CONTENT: '请求内容类型不受支持。',
+  REQUEST_TOO_LARGE: '请求体过大。'
 } as const
 
 //  - Next.js

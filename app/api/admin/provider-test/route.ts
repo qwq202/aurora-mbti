@@ -1,15 +1,15 @@
 import { NextRequest } from 'next/server'
-import { isAdminAuthorized, isAdminConfigured } from '@/lib/admin-auth'
+import { isAuthAuthorized, isAuthConfigured } from '@/lib/auth'
 import { assertAIConfig, completeAIText, resolveAIConfig } from '@/lib/ai-provider'
 import { sanitizeAIConfig } from '@/lib/ai-config'
 import { apiError, apiOk } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
-  if (!isAdminConfigured()) {
-    return apiError('NOT_CONFIGURED', 'ADMIN_TOKEN is not configured on server.', 503)
+  if (!isAuthConfigured()) {
+    return apiError('NOT_CONFIGURED', 'ADMIN_USERNAME and ADMIN_PASSWORD are not configured on server.', 503)
   }
 
-  if (!isAdminAuthorized(request)) {
+  if (!isAuthAuthorized(request)) {
     return apiError('UNAUTHORIZED', 'Unauthorized', 401)
   }
 

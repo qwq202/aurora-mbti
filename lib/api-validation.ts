@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateQuestionCount, validateProfile, validateAnswers, validateMBTIResult, SECURITY_ERRORS } from '@/lib/security'
-import { type Answers, type MbtiResult, type Question, type UserProfile } from '@/lib/mbti'
+import { type Answers, type MbtiResult, type UserProfile } from '@/lib/mbti'
+import { apiError } from '@/lib/api-response'
 
 /**
  *  API
@@ -14,7 +15,7 @@ export interface ValidationConfig {
 
 // 
 export type ValidationResult<T = unknown> = 
-  | NextResponse<{ error: string; details?: string }>  // 
+  | NextResponse  // 
   | { valid: true; data: T }                           // 
 
 export function createValidationMiddleware(config: ValidationConfig = {}) {
@@ -26,9 +27,11 @@ export function createValidationMiddleware(config: ValidationConfig = {}) {
       // 1. Content-Type
       const contentType = request.headers.get('content-type')
       if (!contentType?.includes('application/json')) {
-        return NextResponse.json(
-          { error: SECURITY_ERRORS.INVALID_INPUT, details: 'Content-Typeapplication/json' },
-          { status: 400 }
+        return apiError(
+          'UNSUPPORTED_MEDIA_TYPE',
+          SECURITY_ERRORS.INVALID_CONTENT,
+          415,
+          'Content-Type must be application/json'
         )
       }
 
@@ -36,10 +39,7 @@ export function createValidationMiddleware(config: ValidationConfig = {}) {
       const maxSize = config.maxBodySize || 1024 * 1024 // 1MB
       const contentLength = request.headers.get('content-length')
       if (contentLength && parseInt(contentLength) > maxSize) {
-        return NextResponse.json(
-          { error: SECURITY_ERRORS.REQUEST_TOO_LARGE },
-          { status: 413 }
-        )
+        return apiError('BAD_REQUEST', SECURITY_ERRORS.REQUEST_TOO_LARGE, 413)
       }
 
       // 3. JSON
@@ -47,17 +47,11 @@ export function createValidationMiddleware(config: ValidationConfig = {}) {
       try {
         requestData = await request.json()
       } catch (error) {
-        return NextResponse.json(
-          { error: SECURITY_ERRORS.INVALID_INPUT, details: 'JSON' },
-          { status: 400 }
-        )
+        return apiError('BAD_REQUEST', SECURITY_ERRORS.INVALID_INPUT, 400, 'Invalid JSON payload')
       }
 
       if (typeof requestData !== 'object' || requestData === null) {
-        return NextResponse.json(
-          { error: SECURITY_ERRORS.INVALID_INPUT, details: 'JSON' },
-          { status: 400 }
-        )
+        return apiError('BAD_REQUEST', SECURITY_ERRORS.INVALID_INPUT, 400, 'JSON body must be an object')
       }
 
       const requestRecord = requestData as Record<string, unknown>
@@ -66,10 +60,7 @@ export function createValidationMiddleware(config: ValidationConfig = {}) {
       if (config.requiredFields) {
         for (const field of config.requiredFields) {
           if (!(field in requestRecord)) {
-            return NextResponse.json(
-              { error: SECURITY_ERRORS.INVALID_INPUT, details: `: ${field}` },
-              { status: 400 }
-            )
+            return apiError('BAD_REQUEST', SECURITY_ERRORS.INVALID_INPUT, 400, `Missing field: ${field}`)
           }
         }
       }
@@ -78,20 +69,14 @@ export function createValidationMiddleware(config: ValidationConfig = {}) {
       if (config.customValidation) {
         const customResult = config.customValidation(requestRecord)
         if (!customResult.valid) {
-          return NextResponse.json(
-            { error: SECURITY_ERRORS.INVALID_INPUT, details: customResult.error },
-            { status: 400 }
-          )
+          return apiError('BAD_REQUEST', SECURITY_ERRORS.INVALID_INPUT, 400, customResult.error)
         }
       }
 
       // 6. 
       const validationResult = validator(requestRecord)
       if (!validationResult.valid) {
-        return NextResponse.json(
-          { error: SECURITY_ERRORS.INVALID_INPUT, details: validationResult.error },
-          { status: 400 }
-        )
+        return apiError('BAD_REQUEST', SECURITY_ERRORS.INVALID_INPUT, 400, validationResult.error)
       }
 
       // 
@@ -100,10 +85,7 @@ export function createValidationMiddleware(config: ValidationConfig = {}) {
 
     } catch (error) {
       console.error(':', error)
-      return NextResponse.json(
-        { error: '' },
-        { status: 500 }
-      )
+      return apiError('INTERNAL_ERROR', 'Validation failed due to unexpected error.', 500)
     }
   }
 }

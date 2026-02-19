@@ -122,6 +122,7 @@ export function createRateLimitMiddleware(endpoint: string, limit: number) {
     
     if (!result.allowed) {
       const retryAfter = Math.ceil((result.resetTime - Date.now()) / 1000)
+      const resetAt = Math.ceil(result.resetTime / 1000)
 
       const response = apiError(
         'TOO_MANY_REQUESTS',
@@ -132,7 +133,7 @@ export function createRateLimitMiddleware(endpoint: string, limit: number) {
       response.headers.set('Retry-After', retryAfter.toString())
       response.headers.set('X-RateLimit-Limit', limit.toString())
       response.headers.set('X-RateLimit-Remaining', '0')
-      response.headers.set('X-RateLimit-Reset', result.resetTime.toString())
+      response.headers.set('X-RateLimit-Reset', resetAt.toString())
 
       return {
         action: 'block',
@@ -145,7 +146,7 @@ export function createRateLimitMiddleware(endpoint: string, limit: number) {
       headers: {
         'X-RateLimit-Limit': limit.toString(),
         'X-RateLimit-Remaining': result.remaining.toString(),
-        'X-RateLimit-Reset': result.resetTime.toString()
+        'X-RateLimit-Reset': Math.ceil(result.resetTime / 1000).toString()
       }
     }
   }

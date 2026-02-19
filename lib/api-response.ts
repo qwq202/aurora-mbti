@@ -14,6 +14,10 @@ export type ApiErrorCode =
   | 'UPSTREAM_ERROR'
   | 'NOT_CONFIGURED'
   | 'DEPRECATED'
+  | 'INVALID_BODY'
+  | 'MISSING_FIELDS'
+  | 'INVALID_LOCALE'
+  | 'IMPORT_ERROR'
 
 type ApiOkPayload = Record<string, unknown>
 

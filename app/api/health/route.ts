@@ -20,15 +20,8 @@ export async function GET() {
       hostname: process.env.HOSTNAME || 'unknown',
     }
 
-    // 
+    // AI 配置仅从管理面板读取
     const storedConfig = readStoredAIConfig()
-    const envCheck = {
-      ai_provider_env: process.env.AI_PROVIDER || '',
-      ai_api_key_env: !!process.env.AI_API_KEY,
-      ai_base_url_env: !!process.env.AI_BASE_URL,
-      ai_model_env: !!process.env.AI_MODEL,
-      panel_configured: Boolean(storedConfig),
-    }
     const aiConfig = resolveAIConfig()
     const aiConfigured = aiConfig.spec.requiresApiKey ? !!aiConfig.apiKey : true
 
@@ -36,16 +29,15 @@ export async function GET() {
 
     return apiOk({
       ...healthStatus,
-      environment_check: envCheck,
-      config_source: storedConfig ? 'panel' : 'env',
+      panel_configured: Boolean(storedConfig),
       ai_provider: aiConfig.provider,
       ai_configured: aiConfigured,
       response_time_ms: responseTime,
       checks: {
         memory_usage_mb: Math.round(healthStatus.memory.heapUsed / 1024 / 1024),
-        memory_limit_ok: healthStatus.memory.heapUsed < 400 * 1024 * 1024, // 400MB
-        uptime_ok: healthStatus.uptime > 10, // 10
-        env_ok: Boolean(storedConfig) || !!process.env.AI_PROVIDER,
+        memory_limit_ok: healthStatus.memory.heapUsed < 400 * 1024 * 1024,
+        uptime_ok: healthStatus.uptime > 10,
+        panel_ok: Boolean(storedConfig),
         ai_ok: aiConfigured,
       }
     }, {

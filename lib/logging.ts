@@ -1,5 +1,6 @@
+// 开发环境默认开启调试日志，生产环境关闭
 export function isDebugEnabled(): boolean {
-  return process.env.DEBUG_API_LOGS === 'true'
+  return process.env.NODE_ENV !== 'production'
 }
 
 export function debugLog(...args: unknown[]) {

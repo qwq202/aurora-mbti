@@ -42,11 +42,7 @@ function getRuntimeSecret() {
 }
 
 function getSecret() {
-  const fromEnv =
-    process.env.ANON_AUTH_SECRET?.trim() ||
-    process.env.ADMIN_TOKEN?.trim() ||
-    process.env.OPENAI_API_KEY?.trim() ||
-    ''
+  const fromEnv = process.env.ANON_AUTH_SECRET?.trim() || ''
   return fromEnv || getRuntimeSecret()
 }
 

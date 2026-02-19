@@ -1,16 +1,16 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useLocale } from "next-intl"
 import { Link } from "@/i18n/routing"
 import { 
   Activity, BarChart3, Brain, 
-  CheckCircle, ChevronRight, Clock, Cpu, Database,
+  BookOpen, CheckCircle, ChevronLeft, ChevronRight, ClipboardList, Clock, Cpu, Database,
   Gauge, Globe, Key, Layers, 
-  LogOut, Network, RefreshCw, Server, 
-  Shield, Trash2, Unlock, Wifi, WifiOff,
-  AlertTriangle, TrendingUp, Zap, Filter
+  LogOut, Network, PieChart as PieChartIcon, Plus, RefreshCw, Search, Server, 
+  Shield, Trash2, Upload, Download, Wifi, WifiOff,
+  AlertTriangle, TrendingUp, X, Zap, Filter
 } from "lucide-react"
 import {
   AreaChart as RechartsAreaChart,
@@ -56,10 +56,7 @@ type OverviewData = {
     apiKeyMasked: string
     source?: string
   }
-  security: {
-    debugApiLogs: boolean
-    corsAllowedOrigins: string
-  }
+  security: Record<string, never>
   providers: ProviderInfo[]
 }
 
@@ -87,8 +84,43 @@ type LogEntry = {
   error?: string
 }
 
-type TabType = "overview" | "stats" | "providers" | "security"
+type TabType = "overview" | "stats" | "providers" | "security" | "questions" | "records" | "analytics"
 type LogLevel = "all" | "error" | "warn" | "info" | "debug"
+
+type StoredQuestion = {
+  id: string
+  locale: string
+  text: string
+  dimension: string
+  agree: string
+  contexts?: string[]
+}
+
+type DimensionScore = { winner: string; percent: number }
+
+type AnonymousResult = {
+  id: string
+  timestamp: string
+  mbtiType: string
+  locale: string
+  scores: {
+    EI: DimensionScore
+    SN: DimensionScore
+    TF: DimensionScore
+    JP: DimensionScore
+  }
+  ageGroup?: string
+  gender?: string
+}
+
+type AnalyticsData = {
+  typeDistribution: { type: string; count: number }[]
+  dimensionAverages: { dimension: string; firstLetter: string; secondLetter: string; firstPercent: number }[]
+  ageGroupDistribution: { ageGroup: string; count: number }[]
+  genderDistribution: { gender: string; count: number }[]
+  dailyTrend: { date: string; count: number }[]
+  total: number
+}
 
 type AIEditableConfig = {
   provider: string
@@ -147,6 +179,34 @@ export default function AdminPage() {
     apiKey: "",
   })
 
+  // 题目管理状态
+  const [questionList, setQuestionList] = useState<StoredQuestion[]>([])
+  const [qLoading, setQLoading] = useState(false)
+  const [qLocaleFilter, setQLocaleFilter] = useState<string>("zh")
+  const [qDimFilter, setQDimFilter] = useState<string>("")
+  const [qSearch, setQSearch] = useState("")
+  const [qModalOpen, setQModalOpen] = useState(false)
+  const [editingQ, setEditingQ] = useState<StoredQuestion | null>(null)
+  const [qForm, setQForm] = useState({ text: "", dimension: "EI", agree: "E", locale: "zh", contexts: "" })
+  const [qSaving, setQSaving] = useState(false)
+  const [qImporting, setQImporting] = useState(false)
+  const [qMessage, setQMessage] = useState("")
+
+  // 测试记录状态
+  const [recordList, setRecordList] = useState<AnonymousResult[]>([])
+  const [recordTotal, setRecordTotal] = useState(0)
+  const [recordPage, setRecordPage] = useState(1)
+  const [recordTotalPages, setRecordTotalPages] = useState(1)
+  const [recordLoading, setRecordLoading] = useState(false)
+  const [recordTypeFilter, setRecordTypeFilter] = useState("")
+  const [recordLocaleFilter, setRecordLocaleFilter] = useState("")
+  const [recordFrom, setRecordFrom] = useState("")
+  const [recordTo, setRecordTo] = useState("")
+
+  // 数据分析状态
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
   const readErrorMessage = (body: unknown, fallback: string) => {
     if (!body || typeof body !== "object") return fallback
     const record = body as Record<string, unknown>
@@ -183,6 +243,9 @@ export default function AdminPage() {
         stats: isZh ? "统计" : "Stats",
         providers: isZh ? "渠道" : "Providers",
         security: isZh ? "安全" : "Security",
+        questions: isZh ? "题库" : "Questions",
+        records: isZh ? "测试记录" : "Records",
+        analytics: isZh ? "数据分析" : "Analytics",
       },
       stats: {
         totalCalls: isZh ? "API 调用" : "API Calls",
@@ -200,6 +263,10 @@ export default function AdminPage() {
         tokenRatio: isZh ? "输出/输入比" : "Out/In Ratio",
         successRate: isZh ? "成功率" : "Success Rate",
         allLevels: isZh ? "全部" : "All",
+        levelError: isZh ? "错误" : "error",
+        levelWarn: isZh ? "警告" : "warn",
+        levelInfo: isZh ? "信息" : "info",
+        levelDebug: isZh ? "调试" : "debug",
       },
       overview: {
         runtime: isZh ? "运行状态" : "Runtime",
@@ -226,14 +293,10 @@ export default function AdminPage() {
       },
       security: {
         title: isZh ? "安全设置" : "Security",
-        debugLogs: isZh ? "调试日志" : "Debug Logs",
-        debugLogsDesc: isZh ? "开启后记录详细请求信息" : "Enable detailed request logging",
-        cors: isZh ? "跨域来源" : "CORS Origins",
-        corsDesc: isZh ? "允许跨域请求的来源" : "Allowed origins for CORS requests",
         apiKey: isZh ? "AI API Key" : "AI API Key",
-        apiKeyDesc: isZh ? "当前配置的 AI 服务密钥" : "Currently configured AI service key",
-        adminToken: isZh ? "管理员令牌" : "Admin Token",
-        adminTokenDesc: isZh ? "控制台访问凭证" : "Console access credential",
+        apiKeyDesc: isZh ? "当前配置的 AI 服务密钥（在面板中设置）" : "AI service key (configured in panel)",
+        adminCreds: isZh ? "管理员账号" : "Admin Account",
+        adminCredsDesc: isZh ? "用户名和密码已在环境变量中配置" : "Username and password configured via env",
         memStatus: isZh ? "内存状态" : "Memory Status",
         memStatusDesc: isZh ? "RSS 内存使用情况" : "Physical memory (RSS) usage",
         configured: isZh ? "已配置" : "Configured",
@@ -245,44 +308,105 @@ export default function AdminPage() {
     [isZh]
   )
 
-  const navItems = [
+  type NavItem = {
+    id: TabType
+    label: string
+    desc: string
+    icon: React.ElementType
+    accent: string
+    accentText: string
+    accentBg: string
+  }
+  type NavGroup = { label: string; items: NavItem[] }
+
+  const navGroups: NavGroup[] = [
     {
-      id: "overview" as TabType,
-      label: text.tabs.overview,
-      desc: isZh ? "系统状态一览" : "System status",
-      icon: Gauge,
-      accent: "bg-sky-500",
-      accentText: "text-sky-400",
-      accentBg: "bg-sky-500/15",
+      label: isZh ? "系统" : "System",
+      items: [
+        {
+          id: "overview" as TabType,
+          label: text.tabs.overview,
+          desc: isZh ? "系统状态一览" : "System status",
+          icon: Gauge,
+          accent: "bg-sky-500",
+          accentText: "text-sky-400",
+          accentBg: "bg-sky-500/15",
+        },
+        {
+          id: "stats" as TabType,
+          label: text.tabs.stats,
+          desc: isZh ? "数据统计分析" : "Analytics & logs",
+          icon: BarChart3,
+          accent: "bg-emerald-500",
+          accentText: "text-emerald-400",
+          accentBg: "bg-emerald-500/15",
+        },
+      ],
     },
     {
-      id: "stats" as TabType,
-      label: text.tabs.stats,
-      desc: isZh ? "数据统计分析" : "Analytics & logs",
-      icon: BarChart3,
-      accent: "bg-emerald-500",
-      accentText: "text-emerald-400",
-      accentBg: "bg-emerald-500/15",
+      label: isZh ? "内容" : "Content",
+      items: [
+        {
+          id: "questions" as TabType,
+          label: text.tabs.questions,
+          desc: isZh ? "MBTI 题库管理" : "Manage questions",
+          icon: BookOpen,
+          accent: "bg-orange-500",
+          accentText: "text-orange-400",
+          accentBg: "bg-orange-500/15",
+        },
+      ],
     },
     {
-      id: "providers" as TabType,
-      label: text.tabs.providers,
-      desc: isZh ? "AI 渠道管理" : "AI providers",
-      icon: Network,
-      accent: "bg-violet-500",
-      accentText: "text-violet-400",
-      accentBg: "bg-violet-500/15",
+      label: isZh ? "数据" : "Data",
+      items: [
+        {
+          id: "records" as TabType,
+          label: text.tabs.records,
+          desc: isZh ? "匿名测试记录" : "Anonymous records",
+          icon: ClipboardList,
+          accent: "bg-violet-500",
+          accentText: "text-violet-400",
+          accentBg: "bg-violet-500/15",
+        },
+        {
+          id: "analytics" as TabType,
+          label: text.tabs.analytics,
+          desc: isZh ? "结果统计分析" : "Result analytics",
+          icon: PieChartIcon,
+          accent: "bg-pink-500",
+          accentText: "text-pink-400",
+          accentBg: "bg-pink-500/15",
+        },
+      ],
     },
     {
-      id: "security" as TabType,
-      label: text.tabs.security,
-      desc: isZh ? "安全与环境配置" : "Security & env",
-      icon: Shield,
-      accent: "bg-amber-500",
-      accentText: "text-amber-400",
-      accentBg: "bg-amber-500/15",
+      label: isZh ? "配置" : "Config",
+      items: [
+        {
+          id: "providers" as TabType,
+          label: text.tabs.providers,
+          desc: isZh ? "AI 渠道管理" : "AI providers",
+          icon: Network,
+          accent: "bg-indigo-500",
+          accentText: "text-indigo-400",
+          accentBg: "bg-indigo-500/15",
+        },
+        {
+          id: "security" as TabType,
+          label: text.tabs.security,
+          desc: isZh ? "安全与环境配置" : "Security & env",
+          icon: Shield,
+          accent: "bg-amber-500",
+          accentText: "text-amber-400",
+          accentBg: "bg-amber-500/15",
+        },
+      ],
     },
   ]
+
+  // 扁平化用于 activeNav 查找
+  const navItems = navGroups.flatMap((g) => g.items)
 
   const loadStats = async (signal?: AbortSignal) => {
     try {
@@ -346,12 +470,150 @@ export default function AdminPage() {
     }
   }
 
+  // 题目管理：加载列表
+  const loadQuestions = async () => {
+    setQLoading(true)
+    setQMessage("")
+    try {
+      const params = new URLSearchParams({ locale: qLocaleFilter })
+      if (qDimFilter) params.set("dimension", qDimFilter)
+      const res = await fetch(`/api/admin/questions?${params.toString()}`, { credentials: "include" })
+      const data = await res.json()
+      if (res.ok) setQuestionList(data.questions as StoredQuestion[])
+    } catch (err) {
+      console.error("Failed to load questions:", err)
+    } finally {
+      setQLoading(false)
+    }
+  }
+
+  // 题目管理：保存（新增/编辑）
+  const saveQuestion = async () => {
+    setQSaving(true)
+    setQMessage("")
+    try {
+      const body = {
+        text: qForm.text,
+        dimension: qForm.dimension,
+        agree: qForm.agree,
+        locale: qForm.locale,
+        contexts: qForm.contexts ? qForm.contexts.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      }
+      const url = editingQ ? `/api/admin/questions/${editingQ.id}` : "/api/admin/questions"
+      const method = editingQ ? "PUT" : "POST"
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        setQModalOpen(false)
+        setEditingQ(null)
+        await loadQuestions()
+      } else {
+        const data = await res.json()
+        setQMessage(readErrorMessage(data, isZh ? "保存失败" : "Save failed"))
+      }
+    } finally {
+      setQSaving(false)
+    }
+  }
+
+  // 题目管理：删除
+  const deleteQuestion = async (id: string) => {
+    if (!confirm(isZh ? "确认删除该题目？" : "Delete this question?")) return
+    await fetch(`/api/admin/questions/${id}`, { method: "DELETE", credentials: "include" })
+    await loadQuestions()
+  }
+
+  // 题目管理：从内置导入
+  const importBuiltin = async () => {
+    setQImporting(true)
+    setQMessage("")
+    try {
+      const res = await fetch("/api/admin/questions/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ fromBuiltin: true, locale: qLocaleFilter }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setQMessage(isZh ? `已导入 ${data.imported} 题` : `Imported ${data.imported} questions`)
+        await loadQuestions()
+      } else {
+        setQMessage(readErrorMessage(data, isZh ? "导入失败" : "Import failed"))
+      }
+    } finally {
+      setQImporting(false)
+    }
+  }
+
+  // 题目管理：导出 JSON
+  const exportQuestions = () => {
+    const blob = new Blob([JSON.stringify(questionList, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `questions-${qLocaleFilter}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 测试记录：加载列表
+  const loadRecords = async (page = 1) => {
+    setRecordLoading(true)
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: "50" })
+      if (recordTypeFilter) params.set("type", recordTypeFilter)
+      if (recordLocaleFilter) params.set("locale", recordLocaleFilter)
+      if (recordFrom) params.set("from", recordFrom)
+      if (recordTo) params.set("to", recordTo)
+      const res = await fetch(`/api/admin/results?${params.toString()}`, { credentials: "include" })
+      const data = await res.json()
+      if (res.ok) {
+        setRecordList(data.results as AnonymousResult[])
+        setRecordTotal(data.total as number)
+        setRecordPage(data.page as number)
+        setRecordTotalPages(data.totalPages as number)
+      }
+    } catch (err) {
+      console.error("Failed to load records:", err)
+    } finally {
+      setRecordLoading(false)
+    }
+  }
+
+  // 数据分析：加载
+  const loadAnalytics = async () => {
+    setAnalyticsLoading(true)
+    try {
+      const res = await fetch("/api/admin/analytics", { credentials: "include" })
+      const data = await res.json()
+      if (res.ok) setAnalyticsData(data as AnalyticsData)
+    } catch (err) {
+      console.error("Failed to load analytics:", err)
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }
+
   useEffect(() => {
     const controller = new AbortController()
     void loadOverview(controller.signal)
     // 组件卸载时取消飞行中的请求，防止在已卸载组件上 setState
     return () => controller.abort()
   }, [])
+
+  // Tab 切换时懒加载对应数据
+  useEffect(() => {
+    if (!authorized) return
+    if (activeTab === "questions") void loadQuestions()
+    if (activeTab === "records") void loadRecords(1)
+    if (activeTab === "analytics") void loadAnalytics()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, authorized])
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
@@ -932,7 +1194,11 @@ export default function AdminPage() {
                   : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
               }`}
             >
-              {level === "all" ? text.stats.allLevels : level}
+              {level === "all" ? text.stats.allLevels
+                : level === "error" ? text.stats.levelError
+                : level === "warn" ? text.stats.levelWarn
+                : level === "info" ? text.stats.levelInfo
+                : text.stats.levelDebug}
               <span className="ml-1 opacity-70">({logLevelCounts[level]})</span>
             </button>
           ))}
@@ -1071,31 +1337,10 @@ export default function AdminPage() {
 
     const securityItems = [
       {
-        icon: Unlock,
-        label: text.security.debugLogs,
-        desc: text.security.debugLogsDesc,
-        envKey: "DEBUG_API_LOGS",
-        value: overview?.security.debugApiLogs,
-        valueDisplay: overview?.security.debugApiLogs ? "true" : "false",
-        statusColor: overview?.security.debugApiLogs
-          ? "bg-amber-100 text-amber-700"
-          : "bg-zinc-100 text-zinc-500",
-      },
-      {
-        icon: Globe,
-        label: text.security.cors,
-        desc: text.security.corsDesc,
-        envKey: "CORS_ALLOWED_ORIGINS",
-        value: !!overview?.security.corsAllowedOrigins,
-        valueDisplay: overview?.security.corsAllowedOrigins || "—",
-        statusColor: "bg-zinc-100 text-zinc-600",
-        mono: true,
-      },
-      {
         icon: Key,
         label: text.security.apiKey,
         desc: text.security.apiKeyDesc,
-        envKey: "API_KEY / OPENAI_API_KEY",
+        envKey: isZh ? "管理面板 → AI 配置" : "Admin Panel → AI Config",
         value: overview?.ai.apiKeySet,
         valueDisplay: overview?.ai.apiKeyMasked || "—",
         statusColor: overview?.ai.apiKeySet
@@ -1105,9 +1350,9 @@ export default function AdminPage() {
       },
       {
         icon: Shield,
-        label: text.security.adminToken,
-        desc: text.security.adminTokenDesc,
-        envKey: "ADMIN_TOKEN",
+        label: text.security.adminCreds,
+        desc: text.security.adminCredsDesc,
+        envKey: "ADMIN_USERNAME / ADMIN_PASSWORD",
         value: true,
         valueDisplay: text.security.configured,
         statusColor: "bg-emerald-100 text-emerald-700",
@@ -1172,12 +1417,611 @@ export default function AdminPage() {
     )
   }
 
+  // ──────────────────────────────────────────────
+  // 渲染：题目管理
+  // ──────────────────────────────────────────────
+  const DIMENSIONS = ["EI", "SN", "TF", "JP"]
+  const AGREE_OPTIONS: Record<string, string[]> = { EI: ["E", "I"], SN: ["S", "N"], TF: ["T", "F"], JP: ["J", "P"] }
+  const LOCALES = ["zh", "en", "ja"]
+  const DIM_COLORS: Record<string, string> = {
+    EI: "bg-sky-100 text-sky-700",
+    SN: "bg-emerald-100 text-emerald-700",
+    TF: "bg-violet-100 text-violet-700",
+    JP: "bg-amber-100 text-amber-700",
+  }
+
+  const filteredQuestions = useMemo(() => {
+    if (!qSearch.trim()) return questionList
+    const kw = qSearch.toLowerCase()
+    return questionList.filter((q) => q.text.toLowerCase().includes(kw) || q.id.toLowerCase().includes(kw))
+  }, [questionList, qSearch])
+
+  const renderQuestions = () => (
+    <div className="space-y-5">
+      {/* 工具栏 */}
+      <div className="bg-white rounded-2xl border border-zinc-100 p-5 shadow-sm space-y-4">
+        {/* 语言 Tabs */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex bg-zinc-100 rounded-lg p-1 gap-1">
+            {LOCALES.map((loc) => (
+              <button
+                key={loc}
+                onClick={() => { setQLocaleFilter(loc); setQSearch("") }}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  qLocaleFilter === loc ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"
+                }`}
+              >
+                {loc === "zh" ? "中文" : loc === "en" ? "English" : "日本語"}
+              </button>
+            ))}
+          </div>
+          {/* 维度筛选 */}
+          <select
+            value={qDimFilter}
+            onChange={(e) => setQDimFilter(e.target.value)}
+            className="h-9 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+          >
+            <option value="">{isZh ? "全部维度" : "All Dimensions"}</option>
+            {DIMENSIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          {/* 搜索 */}
+          <div className="relative flex-1 min-w-48">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <input
+              value={qSearch}
+              onChange={(e) => setQSearch(e.target.value)}
+              placeholder={isZh ? "搜索题目文本..." : "Search questions..."}
+              className="w-full h-9 pl-9 pr-4 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+            />
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <button
+              onClick={() => { setEditingQ(null); setQForm({ text: "", dimension: "EI", agree: "E", locale: qLocaleFilter, contexts: "" }); setQModalOpen(true) }}
+              className="h-9 px-4 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />{isZh ? "新增" : "Add"}
+            </button>
+            <button
+              onClick={importBuiltin}
+              disabled={qImporting}
+              className="h-9 px-4 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 disabled:opacity-50 inline-flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />{qImporting ? (isZh ? "导入中..." : "Importing...") : (isZh ? "从内置导入" : "Import Builtin")}
+            </button>
+            <button
+              onClick={exportQuestions}
+              disabled={questionList.length === 0}
+              className="h-9 px-4 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 disabled:opacity-50 inline-flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />{isZh ? "导出" : "Export"}
+            </button>
+            <button
+              onClick={loadQuestions}
+              className="h-9 px-3 bg-zinc-100 text-zinc-600 rounded-lg hover:bg-zinc-200 inline-flex items-center"
+            >
+              <RefreshCw className={`w-4 h-4 ${qLoading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        </div>
+        {qMessage && (
+          <div className={`text-sm px-3 py-2 rounded-lg ${qMessage.includes("失败") || qMessage.includes("failed") ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
+            {qMessage}
+          </div>
+        )}
+      </div>
+
+      {/* 题目表格 */}
+      <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+          <span className="text-sm font-medium text-zinc-500">
+            {isZh ? `共 ${filteredQuestions.length} 题` : `${filteredQuestions.length} questions`}
+          </span>
+        </div>
+        {qLoading ? (
+          <div className="py-20 flex justify-center"><RefreshCw className="w-6 h-6 animate-spin text-zinc-300" /></div>
+        ) : filteredQuestions.length === 0 ? (
+          <div className="py-20 text-center text-zinc-400 text-sm">
+            {isZh ? "暂无题目，点击「从内置导入」初始化" : "No questions. Click 'Import Builtin' to initialize."}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-100">
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500 w-16">#</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">{isZh ? "题目文本" : "Text"}</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500 w-20">{isZh ? "维度" : "Dim"}</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500 w-16">{isZh ? "倾向" : "Agree"}</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500 w-24">{isZh ? "操作" : "Actions"}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {filteredQuestions.map((q, i) => (
+                  <tr key={q.id} className="hover:bg-zinc-50 transition-colors">
+                    <td className="py-3 px-4 text-zinc-400 text-xs">{i + 1}</td>
+                    <td className="py-3 px-4 max-w-md">
+                      <div className="truncate text-zinc-700">{q.text}</div>
+                      <div className="text-xs text-zinc-400 font-mono mt-0.5">{q.id}</div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${DIM_COLORS[q.dimension] || "bg-zinc-100 text-zinc-600"}`}>
+                        {q.dimension}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="px-2 py-0.5 bg-zinc-100 text-zinc-600 rounded text-xs font-mono font-semibold">
+                        {q.agree}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingQ(q)
+                            setQForm({
+                              text: q.text,
+                              dimension: q.dimension,
+                              agree: q.agree,
+                              locale: q.locale,
+                              contexts: (q.contexts || []).join(", "),
+                            })
+                            setQModalOpen(true)
+                          }}
+                          className="px-3 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded text-xs font-medium"
+                        >
+                          {isZh ? "编辑" : "Edit"}
+                        </button>
+                        <button
+                          onClick={() => void deleteQuestion(q.id)}
+                          className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-medium"
+                        >
+                          {isZh ? "删除" : "Del"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 编辑弹层 */}
+      {qModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">
+                {editingQ ? (isZh ? "编辑题目" : "Edit Question") : (isZh ? "新增题目" : "Add Question")}
+              </h3>
+              <button onClick={() => { setQModalOpen(false); setQMessage("") }} className="text-zinc-400 hover:text-zinc-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "题目文本" : "Question Text"}</label>
+                <textarea
+                  value={qForm.text}
+                  onChange={(e) => setQForm((p) => ({ ...p, text: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-zinc-300"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "维度" : "Dimension"}</label>
+                  <select
+                    value={qForm.dimension}
+                    onChange={(e) => {
+                      const dim = e.target.value
+                      setQForm((p) => ({ ...p, dimension: dim, agree: AGREE_OPTIONS[dim]?.[0] || p.agree }))
+                    }}
+                    className="w-full h-9 px-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+                  >
+                    {DIMENSIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "倾向" : "Agree"}</label>
+                  <select
+                    value={qForm.agree}
+                    onChange={(e) => setQForm((p) => ({ ...p, agree: e.target.value }))}
+                    className="w-full h-9 px-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+                  >
+                    {(AGREE_OPTIONS[qForm.dimension] || []).map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "语言" : "Locale"}</label>
+                  <select
+                    value={qForm.locale}
+                    onChange={(e) => setQForm((p) => ({ ...p, locale: e.target.value }))}
+                    className="w-full h-9 px-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+                  >
+                    {LOCALES.map((l) => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "场景标签（逗号分隔）" : "Contexts (comma separated)"}</label>
+                <input
+                  value={qForm.contexts}
+                  onChange={(e) => setQForm((p) => ({ ...p, contexts: e.target.value }))}
+                  placeholder="social, work, personal"
+                  className="w-full h-9 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+                />
+              </div>
+            </div>
+            {qMessage && (
+              <div className="text-sm text-rose-500 bg-rose-50 px-3 py-2 rounded-lg">{qMessage}</div>
+            )}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => void saveQuestion()}
+                disabled={qSaving || !qForm.text.trim()}
+                className="flex-1 h-10 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {qSaving ? (isZh ? "保存中..." : "Saving...") : (isZh ? "保存" : "Save")}
+              </button>
+              <button
+                onClick={() => { setQModalOpen(false); setQMessage("") }}
+                className="h-10 px-5 bg-zinc-100 text-zinc-600 text-sm font-medium rounded-lg hover:bg-zinc-200"
+              >
+                {isZh ? "取消" : "Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  // ──────────────────────────────────────────────
+  // 渲染：测试记录
+  // ──────────────────────────────────────────────
+  const MBTI_TYPES = ["INTJ","INTP","ENTJ","ENTP","INFJ","INFP","ENFJ","ENFP","ISTJ","ISFJ","ESTJ","ESFJ","ISTP","ISFP","ESTP","ESFP"]
+  const TYPE_GROUP_COLORS: Record<string, string> = {
+    NT: "bg-indigo-100 text-indigo-700",
+    NF: "bg-emerald-100 text-emerald-700",
+    ST: "bg-amber-100 text-amber-700",
+    SF: "bg-rose-100 text-rose-700",
+  }
+  function getMbtiColor(type: string): string {
+    const key = type[1] + type[2]
+    return TYPE_GROUP_COLORS[key] || "bg-zinc-100 text-zinc-600"
+  }
+
+  const renderRecords = () => (
+    <div className="space-y-5">
+      {/* 筛选栏 */}
+      <div className="bg-white rounded-2xl border border-zinc-100 p-5 shadow-sm">
+        <div className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">{isZh ? "开始日期" : "From"}</label>
+            <input type="date" value={recordFrom} onChange={(e) => setRecordFrom(e.target.value)}
+              className="h-9 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">{isZh ? "结束日期" : "To"}</label>
+            <input type="date" value={recordTo} onChange={(e) => setRecordTo(e.target.value)}
+              className="h-9 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">{isZh ? "MBTI 类型" : "Type"}</label>
+            <select value={recordTypeFilter} onChange={(e) => setRecordTypeFilter(e.target.value)}
+              className="h-9 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm">
+              <option value="">{isZh ? "全部" : "All"}</option>
+              {MBTI_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">{isZh ? "语言" : "Locale"}</label>
+            <select value={recordLocaleFilter} onChange={(e) => setRecordLocaleFilter(e.target.value)}
+              className="h-9 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm">
+              <option value="">{isZh ? "全部" : "All"}</option>
+              <option value="zh">zh</option>
+              <option value="en">en</option>
+              <option value="ja">ja</option>
+            </select>
+          </div>
+          <button
+            onClick={() => void loadRecords(1)}
+            className="h-9 px-4 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 inline-flex items-center gap-2"
+          >
+            <Search className="w-4 h-4" />{isZh ? "查询" : "Search"}
+          </button>
+          <button
+            onClick={() => { setRecordTypeFilter(""); setRecordLocaleFilter(""); setRecordFrom(""); setRecordTo(""); }}
+            className="h-9 px-4 bg-zinc-100 text-zinc-600 text-sm font-medium rounded-lg hover:bg-zinc-200"
+          >
+            {isZh ? "重置" : "Reset"}
+          </button>
+        </div>
+      </div>
+
+      {/* 记录表格 */}
+      <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+          <span className="text-sm text-zinc-500">
+            {isZh ? `共 ${recordTotal} 条记录` : `${recordTotal} records total`}
+          </span>
+          <button onClick={() => void loadRecords(recordPage)} className="text-zinc-400 hover:text-zinc-700">
+            <RefreshCw className={`w-4 h-4 ${recordLoading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+        {recordLoading ? (
+          <div className="py-20 flex justify-center"><RefreshCw className="w-6 h-6 animate-spin text-zinc-300" /></div>
+        ) : recordList.length === 0 ? (
+          <div className="py-20 text-center text-zinc-400 text-sm">
+            {isZh ? "暂无测试记录" : "No records yet"}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-100">
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">{isZh ? "时间" : "Time"}</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">{isZh ? "类型" : "Type"}</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">EI%</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">SN%</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">TF%</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">JP%</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">{isZh ? "年龄段" : "Age"}</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">{isZh ? "性别" : "Gender"}</th>
+                  <th className="text-left py-3 px-4 font-medium text-zinc-500">{isZh ? "语言" : "Locale"}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {recordList.map((r) => (
+                  <tr key={r.id} className="hover:bg-zinc-50 transition-colors">
+                    <td className="py-3 px-4 text-zinc-400 text-xs whitespace-nowrap">
+                      {new Date(r.timestamp).toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${getMbtiColor(r.mbtiType)}`}>
+                        {r.mbtiType}
+                      </span>
+                    </td>
+                    {(["EI","SN","TF","JP"] as const).map((dim) => (
+                      <td key={dim} className="py-3 px-4 text-xs text-zinc-600 whitespace-nowrap">
+                        <span className="font-mono">{r.scores[dim].winner}</span>
+                        <span className="text-zinc-400 ml-1">{r.scores[dim].percent}%</span>
+                      </td>
+                    ))}
+                    <td className="py-3 px-4 text-xs text-zinc-500">{r.ageGroup || "—"}</td>
+                    <td className="py-3 px-4 text-xs text-zinc-500">{r.gender || "—"}</td>
+                    <td className="py-3 px-4 text-xs text-zinc-400">{r.locale}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {/* 分页 */}
+        {recordTotalPages > 1 && (
+          <div className="px-6 py-4 border-t border-zinc-100 flex items-center justify-between">
+            <button
+              onClick={() => void loadRecords(recordPage - 1)}
+              disabled={recordPage <= 1 || recordLoading}
+              className="h-8 px-3 bg-zinc-100 text-zinc-600 text-xs rounded-lg hover:bg-zinc-200 disabled:opacity-40 inline-flex items-center gap-1"
+            >
+              <ChevronLeft className="w-4 h-4" />{isZh ? "上页" : "Prev"}
+            </button>
+            <span className="text-sm text-zinc-500">
+              {recordPage} / {recordTotalPages}
+            </span>
+            <button
+              onClick={() => void loadRecords(recordPage + 1)}
+              disabled={recordPage >= recordTotalPages || recordLoading}
+              className="h-8 px-3 bg-zinc-100 text-zinc-600 text-xs rounded-lg hover:bg-zinc-200 disabled:opacity-40 inline-flex items-center gap-1"
+            >
+              {isZh ? "下页" : "Next"}<ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  // ──────────────────────────────────────────────
+  // 渲染：数据分析
+  // ──────────────────────────────────────────────
+  const ANALYSIS_COLORS = ["#6366f1","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#ec4899","#84cc16",
+    "#f97316","#14b8a6","#a855f7","#eab308","#22c55e","#3b82f6","#f43f5e","#64748b"]
+
+  const renderAnalytics = () => {
+    if (analyticsLoading) {
+      return (
+        <div className="py-32 flex justify-center">
+          <RefreshCw className="w-8 h-8 animate-spin text-zinc-300" />
+        </div>
+      )
+    }
+
+    if (!analyticsData || analyticsData.total === 0) {
+      return (
+        <div className="py-32 text-center">
+          <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <PieChartIcon className="w-8 h-8 text-zinc-300" />
+          </div>
+          <div className="text-zinc-400 text-sm">{isZh ? "暂无分析数据，完成测试后自动采集" : "No data yet. Records will be collected after tests are completed."}</div>
+          <button onClick={loadAnalytics} className="mt-4 h-9 px-4 bg-zinc-100 text-zinc-600 text-sm rounded-lg hover:bg-zinc-200 inline-flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />{isZh ? "刷新" : "Refresh"}
+          </button>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* 顶部汇总 */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-white rounded-2xl border border-zinc-100 p-5 shadow-sm">
+            <div className="text-xs text-zinc-400 mb-1">{isZh ? "总记录数" : "Total Records"}</div>
+            <div className="text-3xl font-bold">{formatNumber(analyticsData.total)}</div>
+          </div>
+          {analyticsData.typeDistribution.slice(0, 3).map((t, i) => (
+            <div key={t.type} className="bg-white rounded-2xl border border-zinc-100 p-5 shadow-sm">
+              <div className="text-xs text-zinc-400 mb-1">#{i + 1} {isZh ? "最多类型" : "Top Type"}</div>
+              <div className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold mb-2 ${getMbtiColor(t.type)}`}>{t.type}</div>
+              <div className="text-2xl font-bold">{t.count}</div>
+              <div className="text-xs text-zinc-400">{analyticsData.total > 0 ? `${((t.count / analyticsData.total) * 100).toFixed(1)}%` : "—"}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* 类型分布图 */}
+        <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm">
+          <h3 className="text-base font-semibold mb-5">{isZh ? "MBTI 类型分布" : "MBTI Type Distribution"}</h3>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analyticsData.typeDistribution} layout="vertical" margin={{ left: 0, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis dataKey="type" type="category" tick={{ fontSize: 12, fontWeight: 600 }} width={48} />
+                <Tooltip />
+                <Bar dataKey="count" name={isZh ? "人数" : "Count"} radius={[0, 4, 4, 0]}>
+                  {analyticsData.typeDistribution.map((_, i) => (
+                    <Cell key={i} fill={ANALYSIS_COLORS[i % ANALYSIS_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* 维度偏向 */}
+        <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm">
+          <h3 className="text-base font-semibold mb-5">{isZh ? "群体维度偏向" : "Population Dimension Bias"}</h3>
+          <div className="space-y-5">
+            {analyticsData.dimensionAverages.map((d) => (
+              <div key={d.dimension} className="space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-medium text-zinc-700">{d.dimension}</span>
+                  <span className="text-xs text-zinc-400">
+                    {d.firstLetter} {d.firstPercent}% — {d.secondLetter} {100 - d.firstPercent}%
+                  </span>
+                </div>
+                <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-indigo-400 transition-all duration-700 rounded-l-full" style={{ width: `${d.firstPercent}%` }} />
+                  <div className="h-full bg-emerald-400 transition-all duration-700 flex-1" />
+                </div>
+                <div className="flex justify-between text-[11px] text-zinc-400">
+                  <span>{d.firstLetter}</span>
+                  <span>{d.secondLetter}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 人口画像：年龄段 + 性别饼图 */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm">
+            <h3 className="text-base font-semibold mb-4">{isZh ? "年龄段分布" : "Age Group Distribution"}</h3>
+            {analyticsData.ageGroupDistribution.length > 0 ? (
+              <div className="flex flex-col items-center">
+                <div className="h-52 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={analyticsData.ageGroupDistribution} dataKey="count" nameKey="ageGroup"
+                        cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                        {analyticsData.ageGroupDistribution.map((_, i) => (
+                          <Cell key={i} fill={ANALYSIS_COLORS[i % ANALYSIS_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => v} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap gap-3 mt-2 justify-center">
+                  {analyticsData.ageGroupDistribution.map((item, i) => (
+                    <div key={item.ageGroup} className="flex items-center gap-1.5 text-xs text-zinc-500">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: ANALYSIS_COLORS[i % ANALYSIS_COLORS.length] }} />
+                      {item.ageGroup}: {item.count}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="h-52 flex items-center justify-center text-zinc-300 text-sm">{isZh ? "暂无数据" : "No data"}</div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm">
+            <h3 className="text-base font-semibold mb-4">{isZh ? "性别分布" : "Gender Distribution"}</h3>
+            {analyticsData.genderDistribution.length > 0 ? (
+              <div className="flex flex-col items-center">
+                <div className="h-52 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={analyticsData.genderDistribution} dataKey="count" nameKey="gender"
+                        cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                        {analyticsData.genderDistribution.map((_, i) => (
+                          <Cell key={i} fill={["#6366f1","#ec4899","#64748b"][i % 3]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex gap-4 mt-2 justify-center">
+                  {analyticsData.genderDistribution.map((item, i) => (
+                    <div key={item.gender} className="flex items-center gap-1.5 text-xs text-zinc-500">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ["#6366f1","#ec4899","#64748b"][i % 3] }} />
+                      {item.gender}: {item.count}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="h-52 flex items-center justify-center text-zinc-300 text-sm">{isZh ? "暂无数据" : "No data"}</div>
+            )}
+          </div>
+        </div>
+
+        {/* 每日趋势 */}
+        <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold">{isZh ? "每日测试趋势（近 30 天）" : "Daily Test Trend (Last 30 Days)"}</h3>
+            <button onClick={loadAnalytics} className="text-zinc-400 hover:text-zinc-700">
+              <RefreshCw className={`w-4 h-4 ${analyticsLoading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsAreaChart data={analyticsData.dailyTrend}>
+                <defs>
+                  <linearGradient id="analyticsGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Area type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2}
+                  fillOpacity={1} fill="url(#analyticsGrad)" name={isZh ? "测试次数" : "Tests"} />
+              </RechartsAreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case "overview": return renderOverview()
       case "stats": return renderStats()
       case "providers": return renderProviders()
       case "security": return renderSecurity()
+      case "questions": return renderQuestions()
+      case "records": return renderRecords()
+      case "analytics": return renderAnalytics()
       default: return null
     }
   }
@@ -1222,43 +2066,49 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* 导航菜单 */}
+          {/* 导航菜单（分组） */}
           <nav className="flex-1 px-3 py-4 overflow-y-auto">
-            <div className="space-y-0.5">
-              {navItems.map((item) => {
-                const isActive = activeTab === item.id
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 group relative ${
-                      isActive
-                        ? "bg-white/[0.08] text-white"
-                        : "text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200"
-                    }`}
-                  >
-                    {/* 激活左侧 accent 条 */}
-                    {isActive && (
-                      <span className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full ${item.accent}`} />
-                    )}
-                    {/* 图标容器 */}
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                      isActive ? item.accentBg : "bg-white/[0.04] group-hover:bg-white/[0.07]"
-                    }`}>
-                      <item.icon className={`w-4 h-4 ${isActive ? item.accentText : "text-zinc-500 group-hover:text-zinc-300"}`} />
-                    </div>
-                    {/* 文字 */}
-                    <div className="text-left min-w-0">
-                      <div className={`text-sm font-medium leading-none ${isActive ? "text-white" : ""}`}>
-                        {item.label}
-                      </div>
-                      <div className="text-[11px] text-zinc-600 mt-0.5 leading-none truncate">
-                        {item.desc}
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
+            <div className="space-y-4">
+              {navGroups.map((group) => (
+                <div key={group.label}>
+                  <div className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                    {group.label}
+                  </div>
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const isActive = activeTab === item.id
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveTab(item.id)}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 group relative ${
+                            isActive
+                              ? "bg-white/[0.08] text-white"
+                              : "text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200"
+                          }`}
+                        >
+                          {isActive && (
+                            <span className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full ${item.accent}`} />
+                          )}
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isActive ? item.accentBg : "bg-white/[0.04] group-hover:bg-white/[0.07]"
+                          }`}>
+                            <item.icon className={`w-4 h-4 ${isActive ? item.accentText : "text-zinc-500 group-hover:text-zinc-300"}`} />
+                          </div>
+                          <div className="text-left min-w-0">
+                            <div className={`text-sm font-medium leading-none ${isActive ? "text-white" : ""}`}>
+                              {item.label}
+                            </div>
+                            <div className="text-[11px] text-zinc-600 mt-0.5 leading-none truncate">
+                              {item.desc}
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </nav>
 

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { validateAnalysisAPI } from '@/lib/api-validation'
-import { SECURITY_ERRORS } from '@/lib/security'
 import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
+import { apiError } from '@/lib/api-response'
 
 // AIAPI - token
 export async function POST(request: NextRequest) {
@@ -9,12 +9,6 @@ export async function POST(request: NextRequest) {
     const validationResult = await validateAnalysisAPI(request)
     if ('status' in validationResult) {
       return validationResult
-    }
-    if (!validationResult.valid) {
-      return Response.json(
-        { error: SECURITY_ERRORS.INVALID_INPUT },
-        { status: 400 }
-      )
     }
 
     const { profile, answers, questions, mbtiResult } = validationResult.data
@@ -136,9 +130,6 @@ JSON
     
   } catch (error) {
     console.error(':', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '' },
-      { status: 500 }
-    )
+    return apiError('INTERNAL_ERROR', error instanceof Error ? error.message : 'Unknown error', 500)
   }
 }

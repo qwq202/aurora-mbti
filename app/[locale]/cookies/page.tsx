@@ -7,7 +7,7 @@ import { FadeIn, SlideUp } from "@/components/scroll-reveal"
 
 const COOKIE_ROWS = [
   "aurora_cookie_consent",
-  "aurora_admin_token",
+  "aurora_auth_session",
   "NEXT_LOCALE",
 ] as const
 

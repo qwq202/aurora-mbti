@@ -61,7 +61,8 @@ pnpm build
 - `AI_MODEL`：统一模型名（可留空）
 - `CORS_ALLOWED_ORIGINS`：允许跨域来源（逗号分隔，默认仅同源）
 - `DEBUG_API_LOGS`：调试日志开关（仅开发环境建议开启，默认关闭）
-- `ADMIN_TOKEN`：后台登录令牌（用于访问 `/[locale]/admin` 和 `/api/admin/*`）
+- `ADMIN_USERNAME`：后台登录用户名
+- `ADMIN_PASSWORD`：后台登录密码
 
 当 `AI_PROVIDER` 设置后，服务端会按该提供方读取**专用变量**并作为默认值。  
 优先级：`AI_*`（显式） > 专用变量（如 `OPENROUTER_API_KEY`）> 内置默认值。
@@ -208,8 +209,9 @@ ANTHROPIC_BASE_URL=
 GEMINI_BASE_URL=
 CORS_ALLOWED_ORIGINS=
 DEBUG_API_LOGS=false
-ADMIN_TOKEN=
 ANON_AUTH_SECRET=
+ADMIN_USERNAME=
+ADMIN_PASSWORD=
 ```
 
 ## API 路由

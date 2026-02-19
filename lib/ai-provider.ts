@@ -35,46 +35,6 @@ export type AIResolvedConfig = {
   anthropicVersion?: string
 }
 
-const ENV_KEY_BY_PROVIDER: Partial<Record<AIProviderId, string>> = {
-  openai: 'OPENAI_API_KEY',
-  'openai-responses': 'OPENAI_API_KEY',
-  openrouter: 'OPENROUTER_API_KEY',
-  deepseek: 'DEEPSEEK_API_KEY',
-  volcengine: 'VOLCENGINE_API_KEY',
-  bailian: 'DASHSCOPE_API_KEY',
-  newapi: 'NEWAPI_API_KEY',
-  siliconflow: 'SILICONFLOW_API_KEY',
-  anthropic: 'ANTHROPIC_API_KEY',
-  gemini: 'GEMINI_API_KEY',
-  groq: 'GROQ_API_KEY',
-  ollama: 'OLLAMA_API_KEY',
-}
-
-const ENV_URL_BY_PROVIDER: Partial<Record<AIProviderId, string>> = {
-  openai: 'OPENAI_API_URL',
-  'openai-responses': 'OPENAI_API_URL',
-  openrouter: 'OPENROUTER_BASE_URL',
-  deepseek: 'DEEPSEEK_BASE_URL',
-  volcengine: 'VOLCENGINE_BASE_URL',
-  bailian: 'DASHSCOPE_BASE_URL',
-  newapi: 'NEWAPI_BASE_URL',
-  siliconflow: 'SILICONFLOW_BASE_URL',
-  anthropic: 'ANTHROPIC_BASE_URL',
-  gemini: 'GEMINI_BASE_URL',
-  groq: 'GROQ_BASE_URL',
-  ollama: 'OLLAMA_BASE_URL',
-}
-
-const ENV_MODEL_BY_PROVIDER: Partial<Record<AIProviderId, string>> = {
-  openai: 'OPENAI_MODEL',
-  'openai-responses': 'OPENAI_MODEL',
-}
-
-function readEnv(name?: string) {
-  if (!name) return undefined
-  const value = process.env[name]
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
 
 function joinUrl(baseUrl: string, path: string) {
   const left = baseUrl.replace(/\/+$/, '')
@@ -124,25 +84,19 @@ function normalizeBaseUrl(provider: AIProviderId, baseUrl: string, defaultBaseUr
   }
 }
 
+// AI 配置仅从管理面板（data/ai-config.json）读取，不再支持环境变量
 export function resolveAIConfig(input?: AIConfigInput): AIResolvedConfig {
   const storedConfig = readStoredAIConfig()
-  const provider = (input?.provider || storedConfig?.provider || readEnv('AI_PROVIDER') || 'openai') as AIProviderId
+  const provider = (input?.provider || storedConfig?.provider || 'openai') as AIProviderId
   const spec = getProviderSpec(provider)
 
-  const envBaseUrl = readEnv('AI_BASE_URL') || readEnv(ENV_URL_BY_PROVIDER[spec.id])
-  const envModel = readEnv('AI_MODEL') || readEnv(ENV_MODEL_BY_PROVIDER[spec.id])
-  const envApiKey =
-    readEnv(ENV_KEY_BY_PROVIDER[spec.id]) ||
-    readEnv('AI_API_KEY') ||
-    (spec.id === 'openai' || spec.id === 'openai-responses' ? readEnv('OPENAI_API_KEY') : undefined)
-
-  const rawBaseUrl = (input?.baseUrl || storedConfig?.baseUrl || envBaseUrl || spec.defaultBaseUrl || '').replace(/\/+$/, '')
+  const rawBaseUrl = (input?.baseUrl || storedConfig?.baseUrl || spec.defaultBaseUrl || '').replace(/\/+$/, '')
   const baseUrl = normalizeBaseUrl(spec.id, rawBaseUrl, spec.defaultBaseUrl)
-  const model = input?.model || storedConfig?.model || envModel || spec.defaultModel || ''
-  const apiKey = input?.apiKey || storedConfig?.apiKey || envApiKey
-  const openrouterSiteUrl = input?.openrouterSiteUrl || storedConfig?.openrouterSiteUrl || readEnv('OPENROUTER_SITE_URL')
-  const openrouterAppName = input?.openrouterAppName || storedConfig?.openrouterAppName || readEnv('OPENROUTER_APP_NAME')
-  const anthropicVersion = input?.anthropicVersion || storedConfig?.anthropicVersion || readEnv('ANTHROPIC_VERSION') || '2023-06-01'
+  const model = input?.model || storedConfig?.model || spec.defaultModel || ''
+  const apiKey = input?.apiKey || storedConfig?.apiKey
+  const openrouterSiteUrl = input?.openrouterSiteUrl || storedConfig?.openrouterSiteUrl
+  const openrouterAppName = input?.openrouterAppName || storedConfig?.openrouterAppName
+  const anthropicVersion = input?.anthropicVersion || storedConfig?.anthropicVersion || '2023-06-01'
 
   return {
     provider: spec.id,

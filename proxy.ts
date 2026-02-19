@@ -144,8 +144,8 @@ export async function proxy(request: NextRequest) {
       return apiError('METHOD_NOT_ALLOWED', 'Method not allowed.', 405)
     }
     
-    // POSTContent-Type
-    if (request.method === 'POST') {
+    // POST 请求需 Content-Type: application/json（登出等无体请求豁免）
+    if (request.method === 'POST' && !normalizedApiPath.includes('/auth/logout')) {
       const contentType = request.headers.get('content-type')
       if (!contentType?.includes('application/json')) {
         return apiError('UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json.', 415)

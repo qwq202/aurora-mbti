@@ -9,7 +9,7 @@ import {
   BookOpen, CheckCircle, ChevronLeft, ChevronRight, ClipboardList, Clock, Cpu, Database,
   Gauge, Globe, Key, Layers, 
   LogOut, Network, PieChart as PieChartIcon, Plus, RefreshCw, Search, Server, 
-  Shield, Trash2, Upload, Download, Wifi, WifiOff,
+  Shield, Trash2, Upload, Download, Wifi,
   AlertTriangle, TrendingUp, X, Zap, Filter
 } from "lucide-react"
 import {
@@ -160,6 +160,8 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<TabType>("overview")
   const [loading, setLoading] = useState(false)
   const [authorized, setAuthorized] = useState(false)
+  // 认证检查是否已完成（true 前不渲染任何管理内容）
+  const [authChecked, setAuthChecked] = useState(false)
   const [overview, setOverview] = useState<OverviewData | null>(null)
   const [stats, setStats] = useState<StatsData | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
@@ -437,10 +439,12 @@ export default function AdminPage() {
         setAuthorized(false)
         setOverview(null)
         setError(readErrorMessage(data, text.loadFailed))
-        router.push(`/${locale}/login`)
+        setAuthChecked(true)
+        router.replace(`/${locale}/login`)
         return
       }
       setAuthorized(true)
+      setAuthChecked(true)
       setOverview(data.overview as OverviewData)
       setProviderToTest((prev) => prev || data.overview.ai.currentProvider)
       setConfigDraft((prev) => ({
@@ -455,7 +459,8 @@ export default function AdminPage() {
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return
       setError(text.loadFailed)
-      router.push(`/${locale}/login`)
+      setAuthChecked(true)
+      router.replace(`/${locale}/login`)
     } finally {
       setLoading(false)
     }
@@ -616,13 +621,19 @@ export default function AdminPage() {
   }, [activeTab, authorized])
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    })
     setAuthorized(false)
+    setAuthChecked(true)
     setOverview(null)
     setTestResult("")
     setStats(null)
     setLogs([])
-    router.push(`/${locale}/login`)
+    router.replace(`/${locale}/login`)
   }
 
   const handleProviderTest = async () => {
@@ -2028,6 +2039,18 @@ export default function AdminPage() {
 
   const activeNav = navItems.find((n) => n.id === activeTab)
 
+  // 认证检查完成前：全屏 loading，避免闪烁管理界面
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 animate-spin text-zinc-600" />
+      </div>
+    )
+  }
+
+  // 已检查但未授权（redirect 已在 loadOverview 触发，此处返回 null 防止渲染）
+  if (!authorized) return null
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="flex h-screen overflow-hidden">
@@ -2162,25 +2185,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {!authorized ? (
-              <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <WifiOff className="w-8 h-8 text-zinc-300" />
-                  </div>
-                  <h2 className="text-xl font-semibold mb-2">{text.unauthorized}</h2>
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800"
-                  >
-                    {text.goToLogin}
-                    <ChevronRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              renderContent()
-            )}
+            {renderContent()}
           </div>
         </main>
       </div>

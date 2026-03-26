@@ -13,29 +13,11 @@ import { ArrowLeft, ArrowRight, Sparkles, Zap, Brain, Loader, Clock } from "luci
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { toFriendlyErrorMessage } from "@/lib/friendly-error"
 
 
 type TestMode = "standard" | "ai30" | "ai60" | "ai120"
-
-type FollowupQuestion = {
-  id: string
-  question: string
-  detail?: string
-  required?: boolean
-  expected_answer_type?: "short_text" | "long_text" | "multiple_choice"
-}
 
 export default function TestModePage() {
   const router = useRouter()
@@ -51,13 +33,7 @@ export default function TestModePage() {
   const abortRef = useRef<AbortController | null>(null)
 
   const [resumeInfo, setResumeInfo] = useState<{ available: boolean; mode: TestMode | string; answered: number; total: number }>({ available: false, mode: "standard", answered: 0, total: 0 })
-  const [followupQuestions, setFollowupQuestions] = useState<FollowupQuestion[]>([])
-  const [followupAnswers, setFollowupAnswers] = useState<Record<string, string>>({})
-  const [isFollowupOpen, setIsFollowupOpen] = useState(false)
-  const [isFollowupPromptOpen, setIsFollowupPromptOpen] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
-  const [pendingGeneration, setPendingGeneration] = useState<{ questionCount: number } | null>(null)
-  const [isFetchingFollowups, setIsFetchingFollowups] = useState(false)
 
   const generationPercent = useMemo(() => {
     if (!generationProgress.total) return 0
@@ -174,7 +150,7 @@ export default function TestModePage() {
   }
 
   const startTest = async () => {
-    if (!profile || isGenerating || isFetchingFollowups) return
+    if (!profile || isGenerating) return
     
     if (selectedMode === "standard") {
       try {
@@ -188,31 +164,6 @@ export default function TestModePage() {
     }
 
     const questionCount = selectedMode === "ai30" ? 30 : selectedMode === "ai60" ? 60 : 120
-
-    try {
-      setIsFetchingFollowups(true)
-      const response = await fetch('/api/generate-profile-followups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile })
-      })
-      
-      const data = await response.json()
-      const followups = Array.isArray(data?.questions) ? data.questions : []
-      
-      if (followups.length > 0) {
-        setFollowupQuestions(followups)
-        setFollowupAnswers({})
-        setPendingGeneration({ questionCount })
-        setIsFollowupPromptOpen(true)
-        return
-      }
-    } catch (error) {
-      console.error(':', error)
-    } finally {
-      setIsFetchingFollowups(false)
-    }
-
     await beginAIGeneration(questionCount, profile, {})
   }
 
@@ -240,6 +191,7 @@ export default function TestModePage() {
         client.generateQuestions({
           profile: profileForGeneration,
           questionCount,
+          locale,
           onProgress: (current: number, total: number) => {
             setGenerationProgress({ current, total })
           },
@@ -277,36 +229,6 @@ export default function TestModePage() {
     } finally {
       setIsGenerating(false)
     }
-  }
-
-  const handleFollowupSkip = async () => {
-    if (!profile || !pendingGeneration) return
-    const { questionCount } = pendingGeneration
-    setIsFollowupOpen(false)
-    setIsFollowupPromptOpen(false)
-    setPendingGeneration(null)
-    await beginAIGeneration(questionCount, profile, {})
-  }
-
-  const handleFollowupConfirm = async () => {
-    if (!profile || !pendingGeneration) return
-    const { questionCount } = pendingGeneration
-    
-    const clarifications: Record<string, string> = {}
-    followupQuestions.forEach((q) => {
-      const ans = followupAnswers[q.id]
-      if (ans?.trim()) clarifications[q.question.slice(0, 64)] = ans.trim()
-    })
-
-    setIsFollowupOpen(false)
-    setIsFollowupPromptOpen(false)
-    setPendingGeneration(null)
-    await beginAIGeneration(questionCount, profile, clarifications)
-  }
-
-  const handleFollowupPromptProceed = () => {
-    setIsFollowupPromptOpen(false)
-    setIsFollowupOpen(true)
   }
 
   if (!profile) return null
@@ -472,13 +394,13 @@ export default function TestModePage() {
               <div className="text-center">
                 <button 
                   onClick={startTest}
-                  disabled={isFetchingFollowups}
+                  disabled={isGenerating}
                   className="h-16 px-16 bg-zinc-900 text-white font-bold text-lg tracking-widest uppercase hover:bg-black transition-all active:scale-95 rounded-md flex items-center justify-center gap-4 mx-auto disabled:opacity-50"
                 >
-                  {isFetchingFollowups ? (
+                  {isGenerating ? (
                     <>
                       <Loader className="w-5 h-5 animate-spin" />
-                      {t('actions.initializing')}
+                      {t('actions.generating')}
                     </>
                   ) : (
                     <>
@@ -499,82 +421,6 @@ export default function TestModePage() {
       </main>
 
       {/* --- Dialogs --- */}
-      <ConfirmDialog
-        open={isFollowupPromptOpen}
-        onOpenChange={setIsFollowupPromptOpen}
-        title={t('followup.prompt.title')}
-        description={t('followup.prompt.description')}
-        confirmText={t('followup.prompt.proceed')}
-        cancelText={t('followup.prompt.skip')}
-        variant="default"
-        onConfirm={handleFollowupPromptProceed}
-        onCancel={() => void handleFollowupSkip()}
-      />
-
-      <Dialog open={isFollowupOpen} onOpenChange={(open) => setIsFollowupOpen(open)}>
-        <DialogContent
-          className="max-w-2xl rounded-md border-zinc-100 bg-white shadow-2xl p-0 overflow-hidden"
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <div className="p-10 border-b border-zinc-50">
-            <DialogHeader>
-              <DialogTitle className="text-3xl font-bold tracking-tight">{t('followup.form.title')}</DialogTitle>
-              <DialogDescription className="text-zinc-400 font-medium mt-2">
-                {t('followup.form.description')}
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-          
-          <div className="p-10 space-y-8 max-h-[60vh] overflow-y-auto">
-            {followupQuestions.map((q) => {
-              const value = followupAnswers[q.id] || ""
-              const isLong = q.expected_answer_type === "long_text"
-              return (
-                <div key={q.id} className="space-y-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="font-bold text-zinc-900">{q.question}</div>
-                    {q.required && (
-                      <span className="text-[10px] font-black bg-zinc-900 text-white px-2 py-0.5 rounded-md">{t('followup.form.required')}</span>
-                    )}
-                  </div>
-                  {isLong ? (
-                    <Textarea
-                      placeholder={t('followup.form.longPlaceholder')}
-                      value={value}
-                      onChange={(e) => setFollowupAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-                      className="min-h-[120px] bg-zinc-50 border-transparent focus:bg-white focus:border-zinc-900 transition-all rounded-md resize-none"
-                    />
-                  ) : (
-                    <Input
-                      placeholder={t('followup.form.shortPlaceholder')}
-                      value={value}
-                      onChange={(e) => setFollowupAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-                      className="h-14 bg-zinc-50 border-transparent focus:bg-white focus:border-zinc-900 transition-all rounded-md"
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="p-10 bg-zinc-50/50 flex flex-col sm:flex-row justify-end gap-4 border-t border-zinc-50">
-            <button
-              onClick={handleFollowupSkip}
-              className="h-14 px-8 border border-zinc-200 text-zinc-400 font-bold text-[10px] uppercase tracking-widest rounded-md hover:text-zinc-900 hover:border-zinc-900 transition-all"
-            >
-              {t('followup.form.skip')}
-            </button>
-            <button
-              onClick={handleFollowupConfirm}
-              className="h-14 px-8 bg-zinc-900 text-white font-bold text-[10px] uppercase tracking-widest rounded-md hover:bg-black transition-all"
-            >
-              {t('followup.form.submit')}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <ConfirmDialog
         open={showClearConfirm}
         onOpenChange={setShowClearConfirm}

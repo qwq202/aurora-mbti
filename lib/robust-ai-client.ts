@@ -38,10 +38,11 @@ export class RobustAIClient {
 
   constructor() {}
 
-  //  
+//
   async generateQuestions({
     questionCount,
     profile,
+    locale,
     onProgress,
     onPreview,
     onSuccess,
@@ -50,6 +51,7 @@ export class RobustAIClient {
   }: {
     questionCount: number
     profile: UserProfile
+    locale?: string
     onProgress?: (current: number, total: number, message: string) => void
     onPreview?: (questions: Question[]) => void
     onSuccess?: (questions: Question[], metadata: { count: number; batches: number }) => void
@@ -71,6 +73,7 @@ export class RobustAIClient {
         const batchQuestions = await this.generateSingleBatch({
           questionCount: currentBatchSize,
           profile,
+          locale,
           existingQuestions: currentExisting,
           batchIndex,
           onProgress: (current, total, message) => {
@@ -105,6 +108,7 @@ export class RobustAIClient {
   private async generateSingleBatch({
     questionCount,
     profile,
+    locale,
     existingQuestions,
     batchIndex,
     onProgress,
@@ -112,6 +116,7 @@ export class RobustAIClient {
   }: {
     questionCount: number
     profile: UserProfile
+    locale?: string
     existingQuestions: Array<Pick<Question, 'text' | 'dimension'>>
     batchIndex: number
     onProgress?: (current: number, total: number, message: string) => void
@@ -128,7 +133,8 @@ export class RobustAIClient {
           questionCount,
           profile,
           existingQuestions,
-          batchIndex
+          batchIndex,
+          locale
         }),
         signal: this.controller.signal
       })

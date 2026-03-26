@@ -109,6 +109,7 @@ export interface QuestionsAPIData {
   profile: Partial<UserProfile>
   existingQuestions: Array<Record<string, unknown>>
   batchIndex: number
+  locale?: string
 }
 
 
@@ -126,6 +127,7 @@ export async function validateQuestionsAPI(request: NextRequest): Promise<Valida
     const profile = data.profile
     const existingQuestions = Array.isArray(data.existingQuestions) ? data.existingQuestions : []
     const batchIndex = Number(data.batchIndex) || 0
+    const locale = typeof data.locale === 'string' ? data.locale : 'zh'
 
     // questionCount
     const countResult = validateQuestionCount(data.questionCount)
@@ -150,7 +152,8 @@ export async function validateQuestionsAPI(request: NextRequest): Promise<Valida
         questionCount: countResult.sanitized ?? 0,
         profile: sanitizedProfile,
         existingQuestions,
-        batchIndex
+        batchIndex,
+        locale
       }
     }
   })

@@ -945,7 +945,6 @@ export default function AdminPage() {
     if (!config) return
     
     setTestingProvider(providerId)
-    setTestResults((prev) => ({ ...prev, [providerId]: { success: false } }))
     const startTime = Date.now()
     try {
       const res = await fetch("/api/admin/provider-test", {

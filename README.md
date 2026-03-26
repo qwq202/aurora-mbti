@@ -50,22 +50,16 @@ pnpm build
 
 ## 环境变量（OpenAI Compatible / 多提供方）
 
-项目支持多提供方：OpenAI（Chat Completions / Responses）、Gemini、DeepSeek、OpenRouter、火山引擎（豆包）、阿里百炼（DashScope）、NewAPI、硅基流动、Ollama、Anthropic、Groq。  
-**所有配置仅通过环境变量设置**，不提供前端设置页面。
+项目支持多提供方：OpenAI（Chat Completions / Responses）、Gemini、DeepSeek、OpenRouter、火山引擎（豆包）、阿里百炼（DashScope）、NewAPI、硅基流动、Ollama、Anthropic、Groq。
+
+**AI 渠道配置**：可通过管理面板（`/[locale]/admin`）设置 Base URL、模型、API Key（加密存储），无需设置环境变量。环境变量仅用于不通过面板配置的选项。
 
 ### 统一入口变量（推荐）
 
-- `AI_PROVIDER`：提供方标识（见下表）
-- `AI_BASE_URL`：覆盖默认 Base URL（可留空）
-- `AI_API_KEY`：统一 API Key（可留空，优先级低于提供方专用 Key）
-- `AI_MODEL`：统一模型名（可留空）
 - `CORS_ALLOWED_ORIGINS`：允许跨域来源（逗号分隔，默认仅同源）
 - `DEBUG_API_LOGS`：调试日志开关（仅开发环境建议开启，默认关闭）
-- `ADMIN_USERNAME`：后台登录用户名
-- `ADMIN_PASSWORD`：后台登录密码
-
-当 `AI_PROVIDER` 设置后，服务端会按该提供方读取**专用变量**并作为默认值。  
-优先级：`AI_*`（显式） > 专用变量（如 `OPENROUTER_API_KEY`）> 内置默认值。
+- `ADMIN_USERNAME`：后台登录用户名（必填）
+- `ADMIN_PASSWORD`：后台登录密码（必填）
 
 ### 提供方与默认值
 
@@ -84,135 +78,10 @@ pnpm build
 | `anthropic` | `https://api.anthropic.com` | `claude-3-5-sonnet-latest` | Messages API `/v1/messages` |
 | `groq` | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` | OpenAI 兼容 |
 
-### 提供方专用环境变量
+### 管理面板配置 AI 渠道
+AI 渠道（Base URL、模型、API Key）可通过后台管理面板配置，API Key 使用 AES-256-GCM 加密存储。
 
-- **OpenAI / OpenAI Responses**
-  - `OPENAI_API_KEY`、`OPENAI_API_URL`、`OPENAI_MODEL`
-- **OpenRouter**
-  - `OPENROUTER_API_KEY`、`OPENROUTER_BASE_URL`  
-  - （可选）`OPENROUTER_SITE_URL`、`OPENROUTER_APP_NAME`（用于请求头）
-- **Anthropic**
-  - `ANTHROPIC_API_KEY`、`ANTHROPIC_BASE_URL`、`ANTHROPIC_VERSION`（默认 `2023-06-01`）
-- **Gemini**
-  - `GEMINI_API_KEY`、`GEMINI_BASE_URL`
-- **DeepSeek**
-  - `DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL`
-- **Groq**
-  - `GROQ_API_KEY`、`GROQ_BASE_URL`
-- **硅基流动**
-  - `SILICONFLOW_API_KEY`、`SILICONFLOW_BASE_URL`
-- **火山引擎（豆包）**
-  - `VOLCENGINE_API_KEY`、`VOLCENGINE_BASE_URL`
-- **阿里百炼（DashScope）**
-  - `DASHSCOPE_API_KEY`、`DASHSCOPE_BASE_URL`
-- **NewAPI**
-  - `NEWAPI_API_KEY`、`NEWAPI_BASE_URL`
-- **Ollama**
-  - `OLLAMA_API_KEY`（可空）、`OLLAMA_BASE_URL`
-
-### 常用配置示例
-
-**1) OpenAI（Chat Completions）**
-```env
-AI_PROVIDER=openai
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxx
-OPENAI_API_URL=https://api.openai.com
-OPENAI_MODEL=gpt-4o-mini
-```
-
-**2) OpenAI Responses**
-```env
-AI_PROVIDER=openai-responses
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxx
-OPENAI_API_URL=https://api.openai.com
-OPENAI_MODEL=gpt-4o-mini
-```
-
-**3) OpenRouter**
-```env
-AI_PROVIDER=openrouter
-OPENROUTER_API_KEY=or-xxxxxxxxxxxxxxxx
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-AI_MODEL=openai/gpt-4o-mini
-OPENROUTER_SITE_URL=https://your-site.com
-OPENROUTER_APP_NAME=Aurora-MBTI
-```
-
-**4) Gemini**
-```env
-AI_PROVIDER=gemini
-GEMINI_API_KEY=AIzaSyxxxxxxxxxxxxxxxx
-AI_MODEL=gemini-1.5-flash
-```
-
-**5) DeepSeek**
-```env
-AI_PROVIDER=deepseek
-DEEPSEEK_API_KEY=xxxxxxxxxxxxxxxx
-AI_MODEL=deepseek-chat
-```
-
-**6) Anthropic**
-```env
-AI_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
-AI_MODEL=claude-3-5-sonnet-latest
-ANTHROPIC_VERSION=2023-06-01
-```
-
-**7) NewAPI（必须自定义 Base URL）**
-```env
-AI_PROVIDER=newapi
-NEWAPI_API_KEY=xxxxxxxxxxxxxxxx
-NEWAPI_BASE_URL=https://your-newapi-domain/v1
-AI_MODEL=gpt-4o-mini
-```
-
-**8) Ollama（本地）**
-```env
-AI_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-AI_MODEL=llama3.2
-```
-
-### env.template（完整）
-```env
-OPENAI_API_URL=https://api.openai.com
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxx
-OPENAI_MODEL=gpt-4o-mini
-AI_PROVIDER=openai
-AI_BASE_URL=
-AI_API_KEY=
-AI_MODEL=
-OPENROUTER_API_KEY=
-OPENROUTER_SITE_URL=
-OPENROUTER_APP_NAME=
-ANTHROPIC_API_KEY=
-ANTHROPIC_VERSION=
-GEMINI_API_KEY=
-DEEPSEEK_API_KEY=
-GROQ_API_KEY=
-SILICONFLOW_API_KEY=
-VOLCENGINE_API_KEY=
-DASHSCOPE_API_KEY=
-NEWAPI_API_KEY=
-OLLAMA_API_KEY=
-OPENROUTER_BASE_URL=
-DEEPSEEK_BASE_URL=
-GROQ_BASE_URL=
-SILICONFLOW_BASE_URL=
-VOLCENGINE_BASE_URL=
-DASHSCOPE_BASE_URL=
-NEWAPI_BASE_URL=
-OLLAMA_BASE_URL=
-ANTHROPIC_BASE_URL=
-GEMINI_BASE_URL=
-CORS_ALLOWED_ORIGINS=
-DEBUG_API_LOGS=false
-ANON_AUTH_SECRET=
-ADMIN_USERNAME=
-ADMIN_PASSWORD=
-```
+配置路径：`/[locale]/admin` → 渠道管理
 
 ## API 路由
 
@@ -233,9 +102,11 @@ ADMIN_PASSWORD=
 - `POST /api/auth/login`：已废弃（返回 `410`）
 - `POST /api/auth/logout`：已废弃（返回 `410`）
 
-## 后台控制台（缝合方案）
+## 后台控制台
 
 后台页面路径：`/[locale]/admin`，视觉与信息架构参考了高星开源后台模板 **AdminLTE**（GitHub: `ColorlibHQ/AdminLTE`），并按本项目技术栈改为 Next.js + Tailwind 的实现。
+
+**AI 渠道配置**：在后台控制台中配置 Base URL、模型、API Key（加密存储），无需重启服务。
 
 ## Docker（本地）
 
@@ -248,26 +119,26 @@ docker run -d -p 3000:3000 --name aurora-mbti \
 
 ## Docker（linux/amd64 构建与推送）
 
-目标镜像：`qwq202/aurora-mbti-latest`
+目标镜像：`qunqin45/aurora-mbti`
 
 ```bash
 docker buildx build \
   --platform linux/amd64 \
-  -t qwq202/aurora-mbti-latest:latest \
+  -t qunqin45/aurora-mbti:latest \
   --push .
 ```
 
 ## 云端部署（镜像方式）
 
 ```bash
-docker pull qwq202/aurora-mbti-latest:latest
+docker pull qunqin45/aurora-mbti:latest
 docker stop aurora-mbti || true
 docker rm aurora-mbti || true
 docker run -d --name aurora-mbti \
   -p 3000:3000 \
   --env-file .env.local \
   --restart unless-stopped \
-  qwq202/aurora-mbti-latest:latest
+  qunqin45/aurora-mbti:latest
 ```
 
 ## GitHub Release（v1.0.0）

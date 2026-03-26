@@ -3,6 +3,7 @@ import { validateAnalysisAPI } from '@/lib/api-validation'
 import { type AIAnalysis } from '@/lib/ai-types'
 import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
 import { apiError } from '@/lib/api-response'
+import { checkAnonymousTestAccess } from '@/lib/anonymous-access'
 
 /**  heuristics */
 function heuristicsClean(s: string): string {
@@ -20,6 +21,10 @@ function heuristicsClean(s: string): string {
 
 //  AIAPI - 
 export async function POST(request: NextRequest) {
+  // 检查匿名测试访问权限
+  const accessDenied = checkAnonymousTestAccess(request)
+  if (accessDenied) return accessDenied
+
   try {
     //  
     const validationResult = await validateAnalysisAPI(request)

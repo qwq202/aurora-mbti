@@ -35,7 +35,7 @@ export type AIProviderSpec = {
 export const AI_PROVIDER_SPECS: AIProviderSpec[] = [
   {
     id: 'openai',
-    label: 'OpenAI (Chat Completions)',
+    label: 'OpenAI',
     type: 'openai-chat',
     defaultBaseUrl: 'https://api.openai.com',
     chatPath: '/v1/chat/completions',
@@ -45,7 +45,7 @@ export const AI_PROVIDER_SPECS: AIProviderSpec[] = [
   },
   {
     id: 'openai-responses',
-    label: 'OpenAI (Responses API)',
+    label: 'OpenAI (Responses)',
     type: 'openai-responses',
     defaultBaseUrl: 'https://api.openai.com',
     responsesPath: '/v1/responses',
@@ -55,7 +55,7 @@ export const AI_PROVIDER_SPECS: AIProviderSpec[] = [
   },
   {
     id: 'gemini',
-    label: 'Gemini',
+    label: 'Google Gemini',
     type: 'gemini',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     defaultModel: 'gemini-1.5-flash',
@@ -81,7 +81,7 @@ export const AI_PROVIDER_SPECS: AIProviderSpec[] = [
   },
   {
     id: 'volcengine',
-    label: 'Volcengine (Doubao)',
+    label: '火山引擎',
     type: 'openai-chat',
     defaultBaseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
     chatPath: '/chat/completions',
@@ -90,7 +90,7 @@ export const AI_PROVIDER_SPECS: AIProviderSpec[] = [
   },
   {
     id: 'bailian',
-    label: 'Alibaba Bailian (DashScope)',
+    label: '阿里百炼',
     type: 'openai-chat',
     defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     chatPath: '/chat/completions',
@@ -109,7 +109,7 @@ export const AI_PROVIDER_SPECS: AIProviderSpec[] = [
   },
   {
     id: 'siliconflow',
-    label: 'SiliconFlow',
+    label: '硅基流动',
     type: 'openai-chat',
     defaultBaseUrl: 'https://api.siliconflow.cn/v1',
     chatPath: '/chat/completions',
@@ -127,7 +127,7 @@ export const AI_PROVIDER_SPECS: AIProviderSpec[] = [
   },
   {
     id: 'anthropic',
-    label: 'Anthropic (Claude)',
+    label: 'Anthropic Claude',
     type: 'anthropic',
     defaultBaseUrl: 'https://api.anthropic.com',
     chatPath: '/v1/messages',

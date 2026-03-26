@@ -2,14 +2,13 @@
  *  API - Docker
  */
 import { resolveAIConfig } from '@/lib/ai-provider'
-import { readStoredAIConfig } from '@/lib/ai-settings-store'
+import { readStoredAIConfigV2 } from '@/lib/ai-settings-store'
 import { apiError, apiOk } from '@/lib/api-response'
 
 export async function GET() {
   const startTime = Date.now()
   
   try {
-    // 
     const healthStatus = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -20,8 +19,7 @@ export async function GET() {
       hostname: process.env.HOSTNAME || 'unknown',
     }
 
-    // AI 配置仅从管理面板读取
-    const storedConfig = readStoredAIConfig()
+    const storedConfig = readStoredAIConfigV2()
     const aiConfig = resolveAIConfig()
     const aiConfigured = aiConfig.spec.requiresApiKey ? !!aiConfig.apiKey : true
 

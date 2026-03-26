@@ -4,6 +4,22 @@ import { createHmac, timingSafeEqual } from 'crypto'
 export const AUTH_COOKIE_NAME = 'aurora_auth_session'
 const AUTH_SESSION_TTL_SECONDS = 60 * 60 * 8
 
+declare global {
+  var __auroraAuthSecret: string | undefined
+}
+
+function getRuntimeSecret() {
+  if (globalThis.__auroraAuthSecret) return globalThis.__auroraAuthSecret
+  const random = new Uint8Array(32)
+  crypto.getRandomValues(random)
+  globalThis.__auroraAuthSecret = Buffer.from(random).toString('base64url')
+  return globalThis.__auroraAuthSecret
+}
+
+function readSessionSecret() {
+  return getRuntimeSecret()
+}
+
 function readAdminCredentials() {
   return {
     username: process.env.ADMIN_USERNAME || '',
@@ -33,11 +49,6 @@ function base64UrlToUtf8(input: string) {
   const normalized = input.replace(/-/g, '+').replace(/_/g, '/')
   const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4)
   return Buffer.from(padded, 'base64').toString('utf-8')
-}
-
-function readSessionSecret() {
-  const creds = readAdminCredentials()
-  return process.env.ADMIN_SESSION_SECRET?.trim() || `${creds.username}:${creds.password}`
 }
 
 function sign(payloadEncoded: string) {

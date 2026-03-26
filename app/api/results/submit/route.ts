@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { appendResult, type MbtiTypeStr, type DimensionScore } from '@/lib/results-store'
 import { generalRateLimit, getRateLimitKey } from '@/lib/rate-limit'
+import { checkAnonymousTestAccess } from '@/lib/anonymous-access'
 
 interface SubmitBody {
   result: {
@@ -27,6 +28,10 @@ function submitRateLimit(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // 检查匿名测试访问权限
+  const accessDenied = checkAnonymousTestAccess(request)
+  if (accessDenied) return accessDenied
+
   // 限流检查
   const rlDecision = submitRateLimit(request)
   if (rlDecision.action === 'block') {

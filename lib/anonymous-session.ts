@@ -42,8 +42,7 @@ function getRuntimeSecret() {
 }
 
 function getSecret() {
-  const fromEnv = process.env.ANON_AUTH_SECRET?.trim() || ''
-  return fromEnv || getRuntimeSecret()
+  return getRuntimeSecret()
 }
 
 function resolveClientIp(request: NextRequest) {

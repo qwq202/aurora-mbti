@@ -2,9 +2,14 @@ import { NextRequest } from 'next/server'
 import { type UserProfile } from '@/lib/mbti'
 import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
 import { apiError } from '@/lib/api-response'
+import { checkAnonymousTestAccess } from '@/lib/anonymous-access'
 
 // API - OpenAIstreamtoken
 export async function POST(request: NextRequest) {
+  // 检查匿名测试访问权限
+  const accessDenied = checkAnonymousTestAccess(request)
+  if (accessDenied) return accessDenied
+
   try {
     const body = await request.json() as { profileData: UserProfile; questionCount?: number }
     const { profileData, questionCount = 30 } = body

@@ -1,15 +1,35 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import { type AIConfigInput } from './ai-config'
+import { type AIProviderId } from './ai-provider-defs'
 
 const DATA_DIR = path.join(process.cwd(), 'data')
 const AI_SETTINGS_FILE = path.join(DATA_DIR, 'ai-config.json')
 
-type StoredAIConfig = AIConfigInput & {
-  updatedAt?: string
+type SingleProviderConfig = {
+  baseUrl?: string
+  model?: string
   apiKeyEncrypted?: string
+  updatedAt?: string
 }
+
+type StoredAIConfigV2 = {
+  version: 2
+  activeProvider: AIProviderId
+  providers: Record<string, SingleProviderConfig>
+}
+
+type LegacyStoredAIConfig = {
+  version?: never
+  provider?: string
+  baseUrl?: string
+  model?: string
+  apiKey?: string
+  apiKeyEncrypted?: string
+  updatedAt?: string
+}
+
+type StoredAIConfig = StoredAIConfigV2 | LegacyStoredAIConfig
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -17,13 +37,19 @@ function ensureDataDir() {
   }
 }
 
+declare global {
+  var __auroraAISettingsSecret: string | undefined
+}
+
+function getRuntimeSecret() {
+  if (globalThis.__auroraAISettingsSecret) return globalThis.__auroraAISettingsSecret
+  const random = crypto.randomBytes(32)
+  globalThis.__auroraAISettingsSecret = random.toString('base64url')
+  return globalThis.__auroraAISettingsSecret
+}
+
 function getEncryptionSecret() {
-  return (
-    process.env.AI_SETTINGS_SECRET?.trim() ||
-    process.env.ANON_AUTH_SECRET?.trim() ||
-    process.env.ADMIN_PASSWORD?.trim() ||
-    ''
-  )
+  return getRuntimeSecret()
 }
 
 function encryptApiKey(apiKey: string, secret: string) {
@@ -48,46 +74,131 @@ function decryptApiKey(ciphertext: string, secret: string) {
   return decrypted.toString('utf8')
 }
 
-export function readStoredAIConfig(): StoredAIConfig | undefined {
+function isV2Config(config: StoredAIConfig): config is StoredAIConfigV2 {
+  return config.version === 2
+}
+
+export type ProviderConfig = {
+  baseUrl?: string
+  model?: string
+  apiKey?: string
+}
+
+export type AIConfigV2 = {
+  activeProvider: AIProviderId
+  providers: Record<string, ProviderConfig>
+}
+
+export function readStoredAIConfigV2(): AIConfigV2 | undefined {
   try {
     ensureDataDir()
     if (!fs.existsSync(AI_SETTINGS_FILE)) return undefined
     const raw = fs.readFileSync(AI_SETTINGS_FILE, 'utf-8')
     const parsed = JSON.parse(raw) as StoredAIConfig
     if (!parsed || typeof parsed !== 'object') return undefined
-    if (parsed.apiKeyEncrypted) {
-      const secret = getEncryptionSecret()
-      if (secret) {
-        try {
-          parsed.apiKey = decryptApiKey(parsed.apiKeyEncrypted, secret)
-        } catch {
-          delete parsed.apiKey
+
+    const secret = getEncryptionSecret()
+
+    if (isV2Config(parsed)) {
+      const providers: Record<string, ProviderConfig> = {}
+      for (const [id, config] of Object.entries(parsed.providers)) {
+        const providerConfig: ProviderConfig = {
+          baseUrl: config.baseUrl,
+          model: config.model,
         }
-      } else {
-        delete parsed.apiKey
+        if (config.apiKeyEncrypted && secret) {
+          try {
+            providerConfig.apiKey = decryptApiKey(config.apiKeyEncrypted, secret)
+          } catch {}
+        }
+        providers[id] = providerConfig
+      }
+      return {
+        activeProvider: parsed.activeProvider,
+        providers,
       }
     }
-    return parsed
+
+    // 处理旧版本配置，迁移到新格式
+    const legacy = parsed as LegacyStoredAIConfig
+    if (legacy.provider) {
+      const providers: Record<string, ProviderConfig> = {}
+      const providerConfig: ProviderConfig = {
+        baseUrl: legacy.baseUrl,
+        model: legacy.model,
+      }
+      if (legacy.apiKeyEncrypted && secret) {
+        try {
+          providerConfig.apiKey = decryptApiKey(legacy.apiKeyEncrypted, secret)
+        } catch {}
+      } else if (legacy.apiKey) {
+        providerConfig.apiKey = legacy.apiKey
+      }
+      providers[legacy.provider] = providerConfig
+      return {
+        activeProvider: legacy.provider as AIProviderId,
+        providers,
+      }
+    }
+
+    return undefined
   } catch {
     return undefined
   }
 }
 
-export function writeStoredAIConfig(config: AIConfigInput) {
+export function writeStoredAIConfigV2(config: AIConfigV2) {
   ensureDataDir()
   const secret = getEncryptionSecret()
-  const apiKey = config.apiKey?.trim() || ''
-  const data: StoredAIConfig = {
-    ...config,
-    updatedAt: new Date().toISOString(),
-  }
-  if (apiKey) {
-    if (secret) {
-      data.apiKeyEncrypted = encryptApiKey(apiKey, secret)
-      delete data.apiKey
-    } else {
-      delete data.apiKey
+
+  const providers: Record<string, SingleProviderConfig> = {}
+  for (const [id, providerConfig] of Object.entries(config.providers)) {
+    const entry: SingleProviderConfig = {
+      baseUrl: providerConfig.baseUrl,
+      model: providerConfig.model,
+      updatedAt: new Date().toISOString(),
     }
+    if (providerConfig.apiKey?.trim() && secret) {
+      entry.apiKeyEncrypted = encryptApiKey(providerConfig.apiKey.trim(), secret)
+    }
+    providers[id] = entry
   }
+
+  const data: StoredAIConfigV2 = {
+    version: 2,
+    activeProvider: config.activeProvider,
+    providers,
+  }
+
   fs.writeFileSync(AI_SETTINGS_FILE, JSON.stringify(data, null, 2), 'utf-8')
 }
+
+export function setActiveProvider(providerId: AIProviderId) {
+  const current = readStoredAIConfigV2()
+  writeStoredAIConfigV2({
+    activeProvider: providerId,
+    providers: current?.providers || {},
+  })
+}
+
+export function setProviderConfig(providerId: AIProviderId, config: ProviderConfig) {
+  const current = readStoredAIConfigV2()
+  const providers = current?.providers || {}
+  providers[providerId] = config
+  writeStoredAIConfigV2({
+    activeProvider: current?.activeProvider || providerId,
+    providers,
+  })
+}
+
+export function getActiveProviderConfig(): { providerId: AIProviderId; config: ProviderConfig } | undefined {
+  const stored = readStoredAIConfigV2()
+  if (!stored) return undefined
+  const config = stored.providers[stored.activeProvider]
+  return {
+    providerId: stored.activeProvider,
+    config: config || {},
+  }
+}
+
+export type { AIProviderId }

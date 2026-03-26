@@ -4,14 +4,18 @@ import React, { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useLocale } from "next-intl"
 import { Link } from "@/i18n/routing"
-import { 
-  Activity, BarChart3, Brain, 
+import {
+  Activity, BarChart3, Brain,
   BookOpen, CheckCircle, ChevronLeft, ChevronRight, ClipboardList, Clock, Cpu, Database,
-  Gauge, Globe, Key, Layers, 
-  LogOut, Network, PieChart as PieChartIcon, Plus, RefreshCw, Search, Server, 
+  Gauge, Globe, Key, Layers,
+  LogOut, Network, PieChart as PieChartIcon, Plus, RefreshCw, Search, Server,
   Shield, Trash2, Upload, Download, Wifi,
   AlertTriangle, TrendingUp, X, Zap, Filter
 } from "lucide-react"
+import {
+  OpenAI, Anthropic, Gemini, DeepSeek, Ollama, Groq,
+  Volcengine, Bailian, NewAPI, SiliconCloud, OpenRouter
+} from "@lobehub/icons"
 import {
   AreaChart as RechartsAreaChart,
   Area,
@@ -35,6 +39,13 @@ type ProviderInfo = {
   requiresApiKey: boolean
 }
 
+type ProviderConfig = {
+  baseUrl?: string
+  model?: string
+  hasKey: boolean
+  updatedAt?: string
+}
+
 type OverviewData = {
   runtime: {
     nodeEnv: string
@@ -49,15 +60,17 @@ type OverviewData = {
     timestamp: string
   }
   ai: {
-    currentProvider: string
-    baseUrl: string
-    model: string
-    apiKeySet: boolean
-    apiKeyMasked: string
-    source?: string
+    activeProvider: string
+    activeConfig: {
+      baseUrl: string
+      model: string
+      hasKey: boolean
+      keyMasked?: string
+    }
   }
   security: Record<string, never>
-  providers: ProviderInfo[]
+  providers: Record<string, ProviderConfig>
+  specs: ProviderInfo[]
 }
 
 type StatsData = {
@@ -84,7 +97,7 @@ type LogEntry = {
   error?: string
 }
 
-type TabType = "overview" | "stats" | "providers" | "security" | "questions" | "records" | "analytics"
+type TabType = "overview" | "stats" | "providers" | "security" | "questions" | "records" | "analytics" | "system"
 type LogLevel = "all" | "error" | "warn" | "info" | "debug"
 
 type StoredQuestion = {
@@ -122,13 +135,6 @@ type AnalyticsData = {
   total: number
 }
 
-type AIEditableConfig = {
-  provider: string
-  baseUrl: string
-  model: string
-  apiKey: string
-}
-
 function formatMB(bytes: number) {
   return `${Math.round(bytes / 1024 / 1024)} MB`
 }
@@ -144,6 +150,27 @@ function formatNumber(num: number) {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
   if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
   return num.toString()
+}
+
+type ProviderIconProps = { size?: number | string; className?: string; title?: string }
+
+const PROVIDER_ICON_MAP: Record<string, React.ComponentType<ProviderIconProps>> = {
+  openai: OpenAI,
+  'openai-responses': OpenAI,
+  anthropic: Anthropic,
+  gemini: Gemini,
+  deepseek: DeepSeek,
+  ollama: Ollama,
+  groq: Groq,
+  volcengine: Volcengine,
+  bailian: Bailian,
+  newapi: NewAPI,
+  siliconflow: SiliconCloud,
+  openrouter: OpenRouter,
+}
+
+function getProviderIcon(providerId: string): React.ComponentType<ProviderIconProps> | null {
+  return PROVIDER_ICON_MAP[providerId] || null
 }
 
 function formatToken(num: number) {
@@ -166,6 +193,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState<StatsData | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [error, setError] = useState("")
+  const [logMessage, setLogMessage] = useState("")
   const [providerToTest, setProviderToTest] = useState("")
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState("")
@@ -173,13 +201,18 @@ export default function AdminPage() {
   const [configSaving, setConfigSaving] = useState(false)
   const [configMessage, setConfigMessage] = useState("")
   const [switchingProvider, setSwitchingProvider] = useState("")
+  const [switchProviderError, setSwitchProviderError] = useState("")
   const [logLevelFilter, setLogLevelFilter] = useState<LogLevel>("all")
-  const [configDraft, setConfigDraft] = useState<AIEditableConfig>({
-    provider: "",
-    baseUrl: "",
-    model: "",
-    apiKey: "",
-  })
+
+  // AI渠道管理状态
+  const [providerConfigs, setProviderConfigs] = useState<Record<string, { baseUrl: string; model: string; apiKey: string }>>({})
+  const [editingProvider, setEditingProvider] = useState<string | null>(null)
+  const [providerModalOpen, setProviderModalOpen] = useState(false)
+  const [savingProvider, setSavingProvider] = useState<string | null>(null)
+  const [testingProvider, setTestingProvider] = useState<string | null>(null)
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; duration?: string; error?: string }>>({})
+  const [providerMessages, setProviderMessages] = useState<Record<string, string>>({})
+  const [providerSearch, setProviderSearch] = useState("")
 
   // 题目管理状态
   const [questionList, setQuestionList] = useState<StoredQuestion[]>([])
@@ -208,6 +241,25 @@ export default function AdminPage() {
   // 数据分析状态
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
+  // 系统管理状态
+  type SystemSettings = {
+    siteName: string
+    defaultLanguage: 'zh' | 'en' | 'ja'
+    theme: 'light' | 'dark' | 'system'
+    allowAnonymousTest: boolean
+    updatedAt?: string
+  }
+  const [settings, setSettings] = useState<SystemSettings>({
+    siteName: 'Aurora MBTI',
+    defaultLanguage: 'zh',
+    theme: 'system',
+    allowAnonymousTest: true,
+  })
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [settingsMessage, setSettingsMessage] = useState("")
+  const [backupLoading, setBackupLoading] = useState(false)
+  const [backupMessage, setBackupMessage] = useState("")
 
   const readErrorMessage = (body: unknown, fallback: string) => {
     if (!body || typeof body !== "object") return fallback
@@ -403,6 +455,15 @@ export default function AdminPage() {
           accentText: "text-amber-400",
           accentBg: "bg-amber-500/15",
         },
+        {
+          id: "system" as TabType,
+          label: isZh ? "系统管理" : "System",
+          desc: isZh ? "设置、日志、备份" : "Settings, logs, backup",
+          icon: Database,
+          accent: "bg-cyan-500",
+          accentText: "text-cyan-400",
+          accentBg: "bg-cyan-500/15",
+        },
       ],
     },
   ]
@@ -433,26 +494,50 @@ export default function AdminPage() {
     setLoading(true)
     setError("")
     try {
-      const res = await fetch("/api/admin/overview", { credentials: "include", signal })
-      const data = await res.json()
-      if (!res.ok) {
+      const [overviewRes, aiConfigRes] = await Promise.all([
+        fetch("/api/admin/overview", { credentials: "include", signal }),
+        fetch("/api/admin/ai-config", { credentials: "include", signal })
+      ])
+      const overviewData = await overviewRes.json()
+      const aiConfigData = await aiConfigRes.json()
+      
+      if (!overviewRes.ok) {
         setAuthorized(false)
         setOverview(null)
-        setError(readErrorMessage(data, text.loadFailed))
+        setError(readErrorMessage(overviewData, text.loadFailed))
         setAuthChecked(true)
         router.replace(`/${locale}/login`)
         return
       }
       setAuthorized(true)
       setAuthChecked(true)
-      setOverview(data.overview as OverviewData)
-      setProviderToTest((prev) => prev || data.overview.ai.currentProvider)
-      setConfigDraft((prev) => ({
-        provider: prev.provider || data.overview.ai.currentProvider || "",
-        baseUrl: prev.baseUrl || data.overview.ai.baseUrl || "",
-        model: prev.model || data.overview.ai.model || "",
-        apiKey: "",
-      }))
+      
+      // 合并 overview 和 ai-config 数据
+      const mergedOverview: OverviewData = {
+        ...overviewData.overview,
+        ai: aiConfigData.activeProvider ? {
+          activeProvider: aiConfigData.activeProvider,
+          activeConfig: aiConfigData.activeConfig || { baseUrl: "", model: "", hasKey: false }
+        } :overviewData.overview?.ai,
+        providers: aiConfigData.providers || {},
+        specs: aiConfigData.specs || []
+      }
+      setOverview(mergedOverview)
+      
+      // 初始化各渠道配置状态
+      if (aiConfigData.providers) {
+        const configs: Record<string, { baseUrl: string; model: string; apiKey: string }> = {}
+        for (const [id, config] of Object.entries(aiConfigData.providers as Record<string, ProviderConfig>)) {
+          configs[id] = {
+            baseUrl: config.baseUrl || "",
+            model: config.model || "",
+            apiKey: ""
+          }
+        }
+        setProviderConfigs(configs)
+      }
+      
+      setProviderToTest((prev) => prev || aiConfigData.activeProvider || "openai")
       // 同步加载统计数据，概览页图表需要
       setLogsLoading(true)
       void loadStats(signal)
@@ -468,11 +553,18 @@ export default function AdminPage() {
 
   const clearLogs = async () => {
     try {
-      await fetch("/api/admin/logs", { method: "DELETE", credentials: "include" })
-      setLogs([])
+      const res = await fetch("/api/admin/logs", { method: "DELETE", credentials: "include" })
+      if (res.ok) {
+        setLogs([])
+        setLogMessage(isZh ? "日志已清空" : "Logs cleared")
+      } else {
+        setLogMessage(isZh ? "清空失败" : "Clear failed")
+      }
     } catch (err) {
       console.error("Failed to clear logs:", err)
+      setLogMessage(isZh ? "清空失败" : "Clear failed")
     }
+    setTimeout(() => setLogMessage(""), 3000)
   }
 
   // 题目管理：加载列表
@@ -515,10 +607,13 @@ export default function AdminPage() {
       if (res.ok) {
         setQModalOpen(false)
         setEditingQ(null)
+        setQMessage(isZh ? "已保存" : "Saved")
+        setTimeout(() => setQMessage(""), 3000)
         await loadQuestions()
       } else {
         const data = await res.json()
         setQMessage(readErrorMessage(data, isZh ? "保存失败" : "Save failed"))
+        setTimeout(() => setQMessage(""), 3000)
       }
     } finally {
       setQSaving(false)
@@ -528,8 +623,20 @@ export default function AdminPage() {
   // 题目管理：删除
   const deleteQuestion = async (id: string) => {
     if (!confirm(isZh ? "确认删除该题目？" : "Delete this question?")) return
-    await fetch(`/api/admin/questions/${id}`, { method: "DELETE", credentials: "include" })
-    await loadQuestions()
+    setQMessage("")
+    try {
+      const res = await fetch(`/api/admin/questions/${id}`, { method: "DELETE", credentials: "include" })
+      if (res.ok) {
+        setQMessage(isZh ? "已删除" : "Deleted")
+        setTimeout(() => setQMessage(""), 3000)
+        await loadQuestions()
+      } else {
+        const data = await res.json()
+        setQMessage(readErrorMessage(data, isZh ? "删除失败" : "Delete failed"))
+      }
+    } catch {
+      setQMessage(isZh ? "删除失败" : "Delete failed")
+    }
   }
 
   // 题目管理：从内置导入
@@ -546,9 +653,11 @@ export default function AdminPage() {
       const data = await res.json()
       if (res.ok) {
         setQMessage(isZh ? `已导入 ${data.imported} 题` : `Imported ${data.imported} questions`)
+        setTimeout(() => setQMessage(""), 3000)
         await loadQuestions()
       } else {
         setQMessage(readErrorMessage(data, isZh ? "导入失败" : "Import failed"))
+        setTimeout(() => setQMessage(""), 3000)
       }
     } finally {
       setQImporting(false)
@@ -564,6 +673,8 @@ export default function AdminPage() {
     a.download = `questions-${qLocaleFilter}.json`
     a.click()
     URL.revokeObjectURL(url)
+    setQMessage(isZh ? "已导出" : "Exported")
+    setTimeout(() => setQMessage(""), 3000)
   }
 
   // 测试记录：加载列表
@@ -604,6 +715,102 @@ export default function AdminPage() {
     }
   }
 
+  // 系统设置：加载
+  const loadSettings = async () => {
+    setSettingsLoading(true)
+    try {
+      const res = await fetch("/api/admin/settings", { credentials: "include" })
+      const data = await res.json()
+      if (res.ok && data.settings) setSettings(data.settings)
+    } catch (err) {
+      console.error("Failed to load settings:", err)
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
+
+  // 系统设置：保存
+  const saveSettings = async () => {
+    setSettingsLoading(true)
+    setSettingsMessage("")
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ settings }),
+      })
+      if (res.ok) {
+        setSettingsMessage(isZh ? "设置已保存" : "Settings saved")
+        setTimeout(() => setSettingsMessage(""), 3000)
+      } else {
+        setSettingsMessage(isZh ? "保存失败" : "Save failed")
+      }
+    } catch {
+      setSettingsMessage(isZh ? "保存失败" : "Save failed")
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
+
+  // 备份：导出
+  const exportBackup = async () => {
+    setBackupLoading(true)
+    setBackupMessage("")
+    try {
+      const res = await fetch("/api/admin/backup", { credentials: "include" })
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `aurora-backup-${new Date().toISOString().split("T")[0]}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+        setBackupMessage(isZh ? "导出成功" : "Export successful")
+      } else {
+        setBackupMessage(isZh ? "导出失败" : "Export failed")
+      }
+    } catch {
+      setBackupMessage(isZh ? "导出失败" : "Export failed")
+    } finally {
+      setBackupLoading(false)
+      setTimeout(() => setBackupMessage(""), 3000)
+    }
+  }
+
+  // 备份：导入
+  const importBackup = async (file: File) => {
+    setBackupLoading(true)
+    setBackupMessage("")
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      const res = await fetch("/api/admin/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        setBackupMessage(isZh ? "导入成功，正在刷新..." : "Import successful, refreshing...")
+        setTimeout(() => {
+          void loadOverview()
+          void loadQuestions()
+          void loadRecords(1)
+        }, 1000)
+      } else {
+        const errData = await res.json()
+        setBackupMessage(readErrorMessage(errData, isZh ? "导入失败" : "Import failed"))
+      }
+    } catch {
+      setBackupMessage(isZh ? "导入失败：无效的备份文件" : "Import failed: Invalid backup file")
+    } finally {
+      setBackupLoading(false)
+      setTimeout(() => setBackupMessage(""), 5000)
+    }
+  }
+
   useEffect(() => {
     const controller = new AbortController()
     void loadOverview(controller.signal)
@@ -617,8 +824,16 @@ export default function AdminPage() {
     if (activeTab === "questions") void loadQuestions()
     if (activeTab === "records") void loadRecords(1)
     if (activeTab === "analytics") void loadAnalytics()
+    if (activeTab === "system") void loadSettings()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, authorized])
+
+  // 题目筛选变化时重新加载
+  useEffect(() => {
+    if (!authorized || activeTab !== "questions") return
+    void loadQuestions()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qLocaleFilter, qDimFilter])
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", {
@@ -659,59 +874,112 @@ export default function AdminPage() {
     }
   }
 
-  const handleSaveConfig = async () => {
-    if (!configDraft.provider) {
-      setConfigMessage(isZh ? "请选择渠道" : "Select provider")
-      return
-    }
-    setConfigSaving(true)
-    setConfigMessage("")
+  // 保存渠道配置
+  const handleSaveProviderConfig = async (providerId: string) => {
+    const config = providerConfigs[providerId]
+    if (!config) return
+    
+    setSavingProvider(providerId)
+    setProviderMessages((prev) => ({ ...prev, [providerId]: "" }))
     try {
       const res = await fetch("/api/admin/ai-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ config: configDraft }),
+        body: JSON.stringify({
+          action: "save",
+          provider: providerId,
+          config: {
+            baseUrl: config.baseUrl,
+            model: config.model,
+            apiKey: config.apiKey || undefined,
+          },
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
-        setConfigMessage(readErrorMessage(data, isZh ? "保存失败" : "Save failed"))
+        setProviderMessages((prev) => ({ ...prev, [providerId]: readErrorMessage(data, isZh ? "保存失败" : "Save failed") }))
         return
       }
-      setConfigMessage(text.configSaved)
-      setConfigDraft((prev) => ({ ...prev, apiKey: "" }))
+      setProviderMessages((prev) => ({ ...prev, [providerId]: text.configSaved }))
+      setTimeout(() => setProviderMessages((prev) => ({ ...prev, [providerId]: "" })), 3000)
+      // 清空 apiKey 输入框
+      setProviderConfigs((prev) => ({ ...prev, [providerId]: { ...prev[providerId], apiKey: "" } }))
       await loadOverview()
     } catch {
-      setConfigMessage(isZh ? "保存失败" : "Save failed")
+      setProviderMessages((prev) => ({ ...prev, [providerId]: isZh ? "保存失败" : "Save failed" }))
     } finally {
-      setConfigSaving(false)
+      setSavingProvider(null)
     }
   }
 
-  const handleSwitchProvider = async (providerId: string) => {
+  // 设为当前渠道
+  const handleActivateProvider = async (providerId: string) => {
     setSwitchingProvider(providerId)
+    setSwitchProviderError("")
     try {
-      const provider = (overview?.providers || []).find((p) => p.id === providerId)
       const res = await fetch("/api/admin/ai-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "activate", provider: providerId }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setConfigMessage(text.switchSuccess)
+        setTimeout(() => setConfigMessage(""), 3000)
+        await loadOverview()
+      } else {
+        setSwitchProviderError(readErrorMessage(data, isZh ? "切换失败" : "Switch failed"))
+      }
+    } catch {
+      setSwitchProviderError(isZh ? "切换失败" : "Switch failed")
+    } finally {
+      setSwitchingProvider("")
+    }
+  }
+
+  // 测试渠道连接
+  const handleTestProvider = async (providerId: string) => {
+    const config = providerConfigs[providerId]
+    if (!config) return
+    
+    setTestingProvider(providerId)
+    setTestResults((prev) => ({ ...prev, [providerId]: { success: false } }))
+    const startTime = Date.now()
+    try {
+      const res = await fetch("/api/admin/provider-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           config: {
             provider: providerId,
-            baseUrl: provider?.defaultBaseUrl || "",
-            model: provider?.defaultModel || "",
-            apiKey: "",
+            baseUrl: config.baseUrl || undefined,
+            model: config.model || undefined,
+            apiKey: config.apiKey || undefined,
           },
         }),
       })
-      if (res.ok) {
-        await loadOverview()
+      const duration = Date.now() - startTime
+      const data = await res.json()
+      if (!res.ok) {
+        setTestResults((prev) => ({
+          ...prev,[providerId]: { success: false, duration: `${duration}ms`, error: readErrorMessage(data, "Unknown error") },
+        }))
+      } else {
+        setTestResults((prev) => ({
+          ...prev,
+          [providerId]: { success: true, duration: `${duration}ms` },
+        }))
       }
-    } catch (err) {
-      console.error("Failed to switch provider:", err)
+    } catch {
+      setTestResults((prev) => ({
+        ...prev,
+        [providerId]: { success: false, error: isZh ? "网络错误" : "Network error" },
+      }))
     } finally {
-      setSwitchingProvider("")
+      setTestingProvider(null)
     }
   }
 
@@ -760,6 +1028,11 @@ export default function AdminPage() {
   // ──────────────────────────────────────────────
   const renderOverview = () => (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-600 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
       {/* 快速统计摘要行 */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-white rounded-2xl border border-zinc-100 p-5 shadow-sm">
@@ -835,12 +1108,9 @@ export default function AdminPage() {
             </div>
             <span className="text-sm font-medium text-emerald-100">{isZh ? "AI 渠道" : "AI Provider"}</span>
           </div>
-          <div className="text-2xl font-bold capitalize">{overview?.ai.currentProvider || "—"}</div>
+          <div className="text-2xl font-bold capitalize">{overview?.ai.activeProvider || "—"}</div>
           <div className="mt-3 space-y-1">
-            <div className="text-sm text-emerald-100">{text.overview.model}: {overview?.ai.model || "—"}</div>
-            {overview?.ai.source && (
-              <div className="text-xs text-emerald-200">{isZh ? "来源" : "Source"}: {overview.ai.source}</div>
-            )}
+            <div className="text-sm text-emerald-100">{text.overview.model}: {overview?.ai.activeConfig?.model || "—"}</div>
           </div>
         </div>
 
@@ -921,69 +1191,39 @@ export default function AdminPage() {
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <label className="block text-sm text-zinc-500 mb-1">{isZh ? "渠道" : "Provider"}</label>
-                <select
-                  value={configDraft.provider}
-                  onChange={(e) => {
-                    const provider = (overview?.providers || []).find((p) => p.id === e.target.value)
-                    setConfigDraft((prev) => ({
-                      ...prev,
-                      provider: e.target.value,
-                      baseUrl: provider?.defaultBaseUrl || prev.baseUrl,
-                      model: provider?.defaultModel || prev.model,
-                    }))
-                    setProviderToTest(e.target.value)
-                  }}
-                  className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
-                >
-                  {(overview?.providers || []).map((p) => (
-                    <option key={p.id} value={p.id}>{p.id}</option>
-                  ))}
-                </select>
+                <label className="block text-sm text-zinc-500 mb-1">{isZh ? "当前渠道" : "Active Provider"}</label>
+                <div className="h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm flex items-center">
+                  <span className="font-medium capitalize">{overview?.ai.activeProvider || "—"}</span>
+                </div>
               </div>
               <div>
                 <label className="block text-sm text-zinc-500 mb-1">{text.overview.model}</label>
-                <input
-                  value={configDraft.model}
-                  onChange={(e) => setConfigDraft((prev) => ({ ...prev, model: e.target.value }))}
-                  className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
-                  placeholder="gpt-4o-mini"
-                />
+                <div className="h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm flex items-center font-mono">
+                  {overview?.ai.activeConfig?.model || "—"}
+                </div>
               </div>
             </div>
             <div>
               <label className="block text-sm text-zinc-500 mb-1">{text.overview.baseUrl}</label>
-              <input
-                value={configDraft.baseUrl}
-                onChange={(e) => setConfigDraft((prev) => ({ ...prev, baseUrl: e.target.value }))}
-                className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm font-mono"
-                placeholder="https://api.openai.com"
-              />
+              <div className="h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm flex items-center font-mono truncate">
+                {overview?.ai.activeConfig?.baseUrl || "—"}
+              </div>
             </div>
             <div>
               <label className="block text-sm text-zinc-500 mb-1">API Key</label>
-              <input
-                type="password"
-                value={configDraft.apiKey}
-                onChange={(e) => setConfigDraft((prev) => ({ ...prev, apiKey: e.target.value }))}
-                className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm font-mono"
-                placeholder={overview?.ai.apiKeySet ? `•••• ${overview.ai.apiKeyMasked}` : "sk-..."}
-              />
+              <div className="h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm flex items-center">
+                {overview?.ai.activeConfig?.hasKey ? (
+                  <span className="text-emerald-600">{isZh ?"已配置" : "Configured"}</span>
+                ) : (
+                  <span className="text-amber-600">{isZh ? "未配置" : "Not configured"}</span>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSaveConfig}
-                disabled={configSaving}
-                className="h-10 px-5 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 disabled:opacity-50"
-              >
-                {configSaving ? text.saving : text.saveConfig}
-              </button>
-              {configMessage && (
-                <span className={`text-sm ${configMessage === text.configSaved ? "text-emerald-600" : "text-rose-500"}`}>
-                  {configMessage}
-                </span>
-              )}
-            </div>
+            {configMessage && (
+              <div className={`text-sm px-3 py-2 rounded-lg ${configMessage.includes("失败") || configMessage.includes("failed") ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
+                {configMessage}
+              </div>
+            )}
           </div>
         </div>
 
@@ -995,7 +1235,7 @@ export default function AdminPage() {
               onChange={(e) => setProviderToTest(e.target.value)}
               className="flex-1 h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
             >
-              {(overview?.providers || []).map((p) => (
+              {(overview?.specs || []).map((p) => (
                 <option key={p.id} value={p.id}>{p.id} - {p.label}</option>
               ))}
             </select>
@@ -1187,6 +1427,11 @@ export default function AdminPage() {
             {text.stats.clearLogs}
           </button>
         </div>
+        {logMessage && (
+          <div className={`mb-4 text-sm px-3 py-2 rounded-lg ${logMessage.includes("失败") || logMessage.includes("failed") ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
+            {logMessage}
+          </div>
+        )}
 
         {/* 级别过滤 Tabs */}
         <div className="flex items-center gap-1 mb-4 flex-wrap">
@@ -1275,68 +1520,222 @@ export default function AdminPage() {
   // ──────────────────────────────────────────────
   // 渲染：渠道
   // ──────────────────────────────────────────────
-  const renderProviders = () => (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {(overview?.providers || []).map((provider) => {
-          const isActive = provider.id === overview?.ai.currentProvider
-          const isSwitching = switchingProvider === provider.id
-          return (
-            <div
-              key={provider.id}
-              className={`bg-white rounded-2xl border-2 p-5 shadow-sm transition-all hover:shadow-md ${
-                isActive
-                  ? "border-emerald-500 ring-2 ring-emerald-500/10"
-                  : "border-zinc-100 hover:border-zinc-200"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="font-semibold text-base">{provider.id}</div>
-                {isActive ? (
-                  <span className="px-2 py-1 bg-emerald-500 text-white text-xs font-medium rounded-full inline-flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" />
-                    {text.providers.current}
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => void handleSwitchProvider(provider.id)}
-                    disabled={isSwitching || !!switchingProvider}
-                    className="px-3 py-1 bg-zinc-100 hover:bg-zinc-900 hover:text-white text-zinc-600 text-xs font-medium rounded-full transition-all disabled:opacity-50 inline-flex items-center gap-1"
-                  >
-                    {isSwitching && <RefreshCw className="w-3 h-3 animate-spin" />}
-                    {isSwitching ? text.switching : text.switchProvider}
-                  </button>
-                )}
+  const renderProviders = () => {
+    const specs = overview?.specs || []
+    const providers = overview?.providers || {}
+    
+    const search = providerSearch.toLowerCase()
+    const filteredSpecs = specs.filter((spec) =>
+      spec.id.toLowerCase().includes(search) || spec.label.toLowerCase().includes(search)
+    )
+    
+    const editingSpec = specs.find((s) => s.id === editingProvider)
+    const editingConfig = editingProvider ? (providerConfigs[editingProvider] || { baseUrl: editingSpec?.defaultBaseUrl || "", model: editingSpec?.defaultModel || "", apiKey: "" }) : null
+    
+    return (
+      <div className="space-y-6">
+        {switchProviderError && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-600 px-4 py-3 rounded-lg text-sm">
+            {switchProviderError}
+          </div>
+        )}
+        
+        {/* 搜索框 */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <input
+            type="text"
+            value={providerSearch}
+            onChange={(e) => setProviderSearch(e.target.value)}
+            placeholder={isZh ? "搜索渠道..." : "Search providers..."}
+            className="w-full h-10 pl-10 pr-4 bg-white border border-zinc-200 rounded-lg text-sm"
+          />
+        </div>
+        
+        <div className="space-y-3">
+          {filteredSpecs.map((spec) => {
+            const isActive = spec.id === overview?.ai.activeProvider
+            const providerConfig = providers[spec.id] || {}
+            const isSaving = savingProvider === spec.id
+            const isTesting = testingProvider === spec.id
+            const ProviderIcon = getProviderIcon(spec.id)
+            
+            return (
+              <div
+                key={spec.id}
+                className={`bg-white rounded-2xl border-2 shadow-sm transition-all ${
+                  isActive ? "border-emerald-500 ring-2 ring-emerald-500/10" : "border-zinc-100 hover:border-zinc-200"
+                }`}
+              >
+                <div className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${isActive ? "bg-emerald-100" : "bg-zinc-100"}`}>
+                        {ProviderIcon ? (
+                          <ProviderIcon size={28} className={isActive ? "text-emerald-600" : "text-zinc-600"} />
+                        ) : (
+                          <Network className={`w-6 h-6 ${isActive ? "text-emerald-600" : "text-zinc-500"}`} />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <div className="font-semibold text-lg">{spec.id}</div>
+                          {isActive && (
+                            <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs font-medium rounded-full inline-flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" />
+                              {text.providers.current}
+                            </span>
+                          )}
+                          {providerConfig.hasKey && (
+                            <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
+                              {isZh ? "已配置" : "Configured"}
+                            </span>
+                          )}
+                          {spec.requiresApiKey && !providerConfig.hasKey && (
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                              {isZh ? "需要 Key" : "Key Required"}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-zinc-500">{spec.label}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => {
+                          setEditingProvider(spec.id)
+                          setProviderModalOpen(true)
+                          setProviderMessages((prev) => ({ ...prev, [spec.id]: "" }))
+                          setTestResults((prev) => { const n = { ...prev }; delete n[spec.id]; return n })
+                        }}
+                        className="h-9 px-4 bg-zinc-100 text-zinc-700 text-sm font-medium rounded-lg hover:bg-zinc-200"
+                      >
+                        {isZh ? "配置" : "Config"}
+                      </button>
+                      {!isActive && (
+                        <button
+                          onClick={() => void handleActivateProvider(spec.id)}
+                          disabled={!!switchingProvider}
+                          className="h-9 px-4 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 disabled:opacity-50 inline-flex items-center gap-2"
+                        >
+                          {switchingProvider === spec.id && <RefreshCw className="w-4 h-4 animate-spin" />}
+                          {isZh ? "设为当前" : "Set Active"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="text-sm text-zinc-500 mb-3">{provider.label}</div>
-              <div className="space-y-1.5 text-xs">
-                <div className="flex items-center gap-2">
-                  <Globe className="w-3 h-3 text-zinc-400 flex-shrink-0" />
-                  <span className="font-mono text-zinc-400 truncate">{provider.defaultBaseUrl}</span>
+            )
+          })}
+        </div>
+        
+        {/* 配置弹窗 */}
+        {providerModalOpen && editingSpec && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">{editingSpec.id}</h3>
+                  <p className="text-sm text-zinc-500">{editingSpec.label}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Brain className="w-3 h-3 text-zinc-400 flex-shrink-0" />
-                  <span className="text-zinc-500">{provider.defaultModel}</span>
+                <button onClick={() => { setProviderModalOpen(false); setEditingProvider(null) }} className="text-zinc-400 hover:text-zinc-700">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "API 地址" : "Base URL"}</label>
+                  <input
+                    type="text"
+                    value={editingConfig?.baseUrl || ""}
+                    onChange={(e) => setProviderConfigs((prev) => ({ ...prev, [editingSpec.id]: { ...(prev[editingSpec.id] || {}), baseUrl: e.target.value } }))}
+                    placeholder={editingSpec.defaultBaseUrl}
+                    className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm font-mono"
+                  />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Key className="w-3 h-3 flex-shrink-0" />
-                  <span className={provider.requiresApiKey ? "text-amber-600 font-medium" : "text-emerald-600 font-medium"}>
-                    {provider.requiresApiKey ? text.providers.requiresKey : text.providers.noKey}
-                  </span>
+                
+                <div>
+                  <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "模型" : "Model"}</label>
+                  <input
+                    type="text"
+                    value={editingConfig?.model || ""}
+                    onChange={(e) => setProviderConfigs((prev) => ({ ...prev, [editingSpec.id]: { ...(prev[editingSpec.id] || {}), model: e.target.value } }))}
+                    placeholder={editingSpec.defaultModel}
+                    className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+                  />
                 </div>
-                {isActive && overview?.ai.source && (
-                  <div className="flex items-center gap-2 pt-1 border-t border-zinc-100 mt-1">
-                    <Server className="w-3 h-3 text-zinc-400 flex-shrink-0" />
-                    <span className="text-zinc-400">{isZh ? "配置来源" : "Source"}: <span className="font-mono">{overview.ai.source}</span></span>
+                
+                {editingSpec.requiresApiKey && (
+                  <div>
+                    <label className="block text-sm text-zinc-500 mb-1.5">API Key</label>
+                    <input
+                      type="password"
+                      value={editingConfig?.apiKey || ""}
+                      onChange={(e) => setProviderConfigs((prev) => ({ ...prev, [editingSpec.id]: { ...(prev[editingSpec.id] || {}), apiKey: e.target.value } }))}
+                      placeholder={providers[editingSpec.id]?.hasKey ? "••••••••••••" : "sk-..."}
+                      className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm font-mono"
+                    />
+                    {providers[editingSpec.id]?.hasKey && !editingConfig?.apiKey && (
+                      <p className="text-xs text-zinc-400 mt-1">{isZh ? "留空保持现有密钥不变" : "Leave empty to keep existing key"}</p>
+                    )}
                   </div>
                 )}
               </div>
+              
+              {/* 测试结果 */}
+              {testResults[editingSpec.id] && (
+                <div className={`p-3 rounded-lg text-sm ${testResults[editingSpec.id].success ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"}`}>
+                  {testResults[editingSpec.id].success ? (
+                    <span className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      {isZh ? "连接成功" : "Connection successful"} ({testResults[editingSpec.id].duration})
+                    </span>
+                  ) : (
+                    <span>{isZh ? "连接失败" : "Connection failed"}: {testResults[editingSpec.id].error}</span>
+                  )}
+                </div>
+              )}
+              
+              {providerMessages[editingSpec.id] && (
+                <div className={`text-sm px-3 py-2 rounded-lg ${providerMessages[editingSpec.id].includes("失败") || providerMessages[editingSpec.id].includes("failed") ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
+                  {providerMessages[editingSpec.id]}
+                </div>
+              )}
+              
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={() => void handleSaveProviderConfig(editingSpec.id)}
+                  disabled={savingProvider === editingSpec.id}
+                  className="h-10 px-5 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {savingProvider === editingSpec.id && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  {savingProvider === editingSpec.id ? (isZh ? "保存中..." : "Saving...") : (isZh ? "保存配置" : "Save")}
+                </button>
+                
+                <button
+                  onClick={() => void handleTestProvider(editingSpec.id)}
+                  disabled={testingProvider === editingSpec.id}
+                  className="h-10 px-5 bg-zinc-100 text-zinc-700 text-sm font-medium rounded-lg hover:bg-zinc-200 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {testingProvider === editingSpec.id && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  {testingProvider === editingSpec.id ? (isZh ? "测试中..." : "Testing...") : (isZh ? "测试连接" : "Test")}
+                </button>
+                
+                <button
+                  onClick={() => { setProviderModalOpen(false); setEditingProvider(null) }}
+                  className="h-10 px-5 bg-zinc-100 text-zinc-700 text-sm font-medium rounded-lg hover:bg-zinc-200"
+                >
+                  {isZh ? "关闭" : "Close"}
+                </button>
+              </div>
             </div>
-          )
-        })}
+          </div>
+        )}
       </div>
-    </div>
-  )
+    )}
 
   // ──────────────────────────────────────────────
   // 渲染：安全
@@ -1352,9 +1751,9 @@ export default function AdminPage() {
         label: text.security.apiKey,
         desc: text.security.apiKeyDesc,
         envKey: isZh ? "管理面板 → AI 配置" : "Admin Panel → AI Config",
-        value: overview?.ai.apiKeySet,
-        valueDisplay: overview?.ai.apiKeyMasked || "—",
-        statusColor: overview?.ai.apiKeySet
+        value: overview?.ai.activeConfig?.hasKey,
+        valueDisplay: overview?.ai.activeConfig?.keyMasked || (overview?.ai.activeConfig?.hasKey ? "••••••••" : "—"),
+        statusColor: overview?.ai.activeConfig?.hasKey
           ? "bg-emerald-100 text-emerald-700"
           : "bg-rose-100 text-rose-700",
         mono: true,
@@ -1578,13 +1977,13 @@ export default function AdminPage() {
                             })
                             setQModalOpen(true)
                           }}
-                          className="px-3 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded text-xs font-medium"
+                          className="px-3 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded text-xs font-medium whitespace-nowrap"
                         >
                           {isZh ? "编辑" : "Edit"}
                         </button>
                         <button
                           onClick={() => void deleteQuestion(q.id)}
-                          className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-medium"
+                          className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-medium whitespace-nowrap"
                         >
                           {isZh ? "删除" : "Del"}
                         </button>
@@ -1744,7 +2143,7 @@ export default function AdminPage() {
             <Search className="w-4 h-4" />{isZh ? "查询" : "Search"}
           </button>
           <button
-            onClick={() => { setRecordTypeFilter(""); setRecordLocaleFilter(""); setRecordFrom(""); setRecordTo(""); }}
+            onClick={() => { setRecordTypeFilter(""); setRecordLocaleFilter(""); setRecordFrom(""); setRecordTo(""); void loadRecords(1) }}
             className="h-9 px-4 bg-zinc-100 text-zinc-600 text-sm font-medium rounded-lg hover:bg-zinc-200"
           >
             {isZh ? "重置" : "Reset"}
@@ -2024,6 +2423,180 @@ export default function AdminPage() {
     )
   }
 
+  const renderSystem = () => (
+    <div className="space-y-6">
+      {/* 系统设置 */}
+      <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold mb-4">{isZh ? "系统设置" : "System Settings"}</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "站点名称" : "Site Name"}</label>
+            <input
+              type="text"
+              value={settings.siteName}
+              onChange={(e) => setSettings((s) => ({ ...s, siteName: e.target.value }))}
+              className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+              placeholder="Aurora MBTI"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "默认语言" : "Default Language"}</label>
+              <select
+                value={settings.defaultLanguage}
+                onChange={(e) => setSettings((s) => ({ ...s, defaultLanguage: e.target.value as 'zh' | 'en' | 'ja' }))}
+                className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+              >
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+                <option value="ja">日本語</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-zinc-500 mb-1.5">{isZh ? "主题" : "Theme"}</label>
+              <select
+                value={settings.theme}
+                onChange={(e) => setSettings((s) => ({ ...s, theme: e.target.value as 'light' | 'dark' | 'system' }))}
+                className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-sm"
+              >
+                <option value="system">{isZh ? "跟随系统" : "System"}</option>
+                <option value="light">{isZh ? "浅色" : "Light"}</option>
+                <option value="dark">{isZh ? "深色" : "Dark"}</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="allowAnonymousTest"
+              checked={settings.allowAnonymousTest}
+              onChange={(e) => setSettings((s) => ({ ...s, allowAnonymousTest: e.target.checked }))}
+              className="w-4 h-4 rounded border-zinc-300"
+            />
+            <label htmlFor="allowAnonymousTest" className="text-sm text-zinc-700">
+              {isZh ? "允许匿名用户进行测试" : "Allow anonymous users to take tests"}
+            </label>
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              onClick={saveSettings}
+              disabled={settingsLoading}
+              className="h-10 px-5 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {settingsLoading ? (isZh ? "保存中..." : "Saving...") : (isZh ? "保存设置" : "Save Settings")}
+            </button>
+            {settingsMessage && (
+              <span className={`text-sm ${settingsMessage.includes("失败") || settingsMessage.includes("failed") ? "text-rose-500" : "text-emerald-600"}`}>
+                {settingsMessage}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 系统日志 */}
+      <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">{isZh ? "系统日志" : "System Logs"}</h3>
+          <button
+            onClick={clearLogs}
+            disabled={logs.length === 0}
+            className="h-8 px-3 bg-rose-50 text-rose-600 text-xs font-medium rounded-lg hover:bg-rose-100 disabled:opacity-50"
+          >
+            {isZh ? "清空日志" : "Clear Logs"}
+          </button>
+        </div>
+        {logMessage && (
+          <div className={`text-sm px-3 py-2 rounded-lg mb-4 ${logMessage.includes("失败") || logMessage.includes("failed") ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"}`}>
+            {logMessage}
+          </div>
+        )}
+        {logsLoading ? (
+          <div className="py-12 flex justify-center"><RefreshCw className="w-6 h-6 animate-spin text-zinc-300" /></div>
+        ) : logs.length === 0 ? (
+          <div className="py-12 text-center text-zinc-400 text-sm">{isZh ? "暂无日志记录" : "No logs"}</div>
+        ) : (
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-zinc-50">
+                <tr className="border-b border-zinc-100">
+                  <th className="text-left py-2 px-3 font-medium text-zinc-500">{isZh ? "时间" : "Time"}</th>
+                  <th className="text-left py-2 px-3 font-medium text-zinc-500">{isZh ? "级别" : "Level"}</th>
+                  <th className="text-left py-2 px-3 font-medium text-zinc-500">{isZh ? "端点" : "Endpoint"}</th>
+                  <th className="text-left py-2 px-3 font-medium text-zinc-500">{isZh ? "状态" : "Status"}</th>
+                  <th className="text-left py-2 px-3 font-medium text-zinc-500">{isZh ? "耗时" : "Duration"}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {logs.slice(0, 100).map((log) => (
+                  <tr key={log.id} className="hover:bg-zinc-50">
+                    <td className="py-2 px-3 text-xs text-zinc-400 whitespace-nowrap">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </td>
+                    <td className="py-2 px-3">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        log.level === "error" ? "bg-rose-100 text-rose-700" :
+                        log.level === "warn" ? "bg-amber-100 text-amber-700" :
+                        log.level === "debug" ? "bg-violet-100 text-violet-700" :
+                        "bg-zinc-100 text-zinc-600"
+                      }`}>{log.level}</span>
+                    </td>
+                    <td className="py-2 px-3 text-xs font-mono text-zinc-600">{log.method} {log.endpoint}</td>
+                    <td className="py-2 px-3 text-xs">
+                      {log.statusCode && (
+                        <span className={log.statusCode >= 400 ? "text-rose-500" : "text-emerald-500"}>{log.statusCode}</span>
+                      )}
+                    </td>
+                    <td className="py-2 px-3 text-xs text-zinc-400 whitespace-nowrap">
+                      {log.duration != null ? `${log.duration}ms` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 数据备份 */}
+      <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold mb-4">{isZh ? "数据备份" : "Data Backup"}</h3>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={exportBackup}
+            disabled={backupLoading}
+            className="h-10 px-5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            {isZh ? "导出备份" : "Export Backup"}
+          </button>
+          <label className="h-10 px-5 bg-zinc-100 text-zinc-700 text-sm font-medium rounded-lg hover:bg-zinc-200 cursor-pointer inline-flex items-center gap-2">
+            <Upload className="w-4 h-4" />
+            {isZh ? "导入备份" : "Import Backup"}
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) void importBackup(file)
+                e.target.value = ""
+              }}
+            />
+          </label>
+        </div>
+        {backupMessage && (
+          <div className={`mt-3 text-sm ${backupMessage.includes("失败") || backupMessage.includes("failed") ? "text-rose-500" : "text-emerald-600"}`}>
+            {backupMessage}
+          </div>
+        )}
+        <p className="mt-3 text-xs text-zinc-400">
+          {isZh ? "导入备份将覆盖现有数据（题库、测试记录、AI配置、系统设置）" : "Importing backup will overwrite existing data (questions, results, AI config, settings)"}
+        </p>
+      </div>
+    </div>
+  )
+
   const renderContent = () => {
     switch (activeTab) {
       case "overview": return renderOverview()
@@ -2033,6 +2606,7 @@ export default function AdminPage() {
       case "questions": return renderQuestions()
       case "records": return renderRecords()
       case "analytics": return renderAnalytics()
+      case "system": return renderSystem()
       default: return null
     }
   }

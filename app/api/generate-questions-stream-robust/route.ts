@@ -4,6 +4,7 @@ import { debugError, debugLog, debugWarn } from '@/lib/logging'
 import { type Question } from '@/lib/mbti'
 import { assertAIConfig, resolveAIConfig, streamAIText } from '@/lib/ai-provider'
 import { apiError } from '@/lib/api-response'
+import { checkAnonymousTestAccess } from '@/lib/anonymous-access'
 
 /**  heuristics */
 function heuristicsClean(s: string): string {
@@ -21,6 +22,10 @@ function heuristicsClean(s: string): string {
 
 //  API - +
 export async function POST(request: NextRequest) {
+  // 检查匿名测试访问权限
+  const accessDenied = checkAnonymousTestAccess(request)
+  if (accessDenied) return accessDenied
+
   try {
     //  
     const validationResult = await validateQuestionsAPI(request)

@@ -1,6 +1,5 @@
 import { AI_PROVIDER_MAP, type AIProviderId, type AIProviderSpec } from './ai-provider-defs'
-import { type AIConfigInput } from './ai-config'
-import { readStoredAIConfig } from './ai-settings-store'
+import { readStoredAIConfigV2, type ProviderConfig } from './ai-settings-store'
 
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant'
@@ -30,9 +29,6 @@ export type AIResolvedConfig = {
   baseUrl: string
   model: string
   apiKey?: string
-  openrouterSiteUrl?: string
-  openrouterAppName?: string
-  anthropicVersion?: string
 }
 
 
@@ -85,18 +81,16 @@ function normalizeBaseUrl(provider: AIProviderId, baseUrl: string, defaultBaseUr
 }
 
 // AI 配置仅从管理面板（data/ai-config.json）读取，不再支持环境变量
-export function resolveAIConfig(input?: AIConfigInput): AIResolvedConfig {
-  const storedConfig = readStoredAIConfig()
-  const provider = (input?.provider || storedConfig?.provider || 'openai') as AIProviderId
-  const spec = getProviderSpec(provider)
+export function resolveAIConfig(overrideProvider?: AIProviderId, overrideConfig?: ProviderConfig): AIResolvedConfig {
+  const stored = readStoredAIConfigV2()
+  const providerId = overrideProvider || stored?.activeProvider || 'openai'
+  const spec = getProviderSpec(providerId)
+  const providerConfig = stored?.providers?.[providerId] || {}
 
-  const rawBaseUrl = (input?.baseUrl || storedConfig?.baseUrl || spec.defaultBaseUrl || '').replace(/\/+$/, '')
+  const rawBaseUrl = (overrideConfig?.baseUrl || providerConfig.baseUrl || spec.defaultBaseUrl || '').replace(/\/+$/, '')
   const baseUrl = normalizeBaseUrl(spec.id, rawBaseUrl, spec.defaultBaseUrl)
-  const model = input?.model || storedConfig?.model || spec.defaultModel || ''
-  const apiKey = input?.apiKey || storedConfig?.apiKey
-  const openrouterSiteUrl = input?.openrouterSiteUrl || storedConfig?.openrouterSiteUrl
-  const openrouterAppName = input?.openrouterAppName || storedConfig?.openrouterAppName
-  const anthropicVersion = input?.anthropicVersion || storedConfig?.anthropicVersion || '2023-06-01'
+  const model = overrideConfig?.model || providerConfig.model || spec.defaultModel || ''
+  const apiKey = overrideConfig?.apiKey || providerConfig.apiKey
 
   return {
     provider: spec.id,
@@ -104,21 +98,18 @@ export function resolveAIConfig(input?: AIConfigInput): AIResolvedConfig {
     baseUrl,
     model,
     apiKey,
-    openrouterSiteUrl,
-    openrouterAppName,
-    anthropicVersion,
   }
 }
 
 export function assertAIConfig(config: AIResolvedConfig) {
   if (!config.baseUrl) {
-    throw new Error('AI_BASE_URL')
+    throw new Error('Base URL 未设置，请检查渠道配置')
   }
   if (!config.model) {
-    throw new Error('AI_MODEL')
+    throw new Error('模型名称未设置，请检查渠道配置')
   }
   if (config.spec.requiresApiKey && !config.apiKey) {
-    throw new Error('AI_API_KEY')
+    throw new Error(`当前渠道 ${config.provider} 需要 API Key，请先在 AI 配置中填写`)
   }
 }
 
@@ -266,15 +257,10 @@ export async function* streamAIText(config: AIResolvedConfig, options: AIComplet
     headers.Authorization = `Bearer ${config.apiKey}`
   }
 
-  if (config.provider === 'openrouter') {
-    if (config.openrouterSiteUrl) headers['HTTP-Referer'] = config.openrouterSiteUrl
-    if (config.openrouterAppName) headers['X-Title'] = config.openrouterAppName
-  }
-
   if (config.spec.type === 'anthropic') {
     if (config.apiKey) delete headers.Authorization
     headers['x-api-key'] = config.apiKey || ''
-    headers['anthropic-version'] = config.anthropicVersion || '2023-06-01'
+    headers['anthropic-version'] = '2023-06-01'
   }
 
   if (config.spec.type === 'gemini') {
@@ -383,15 +369,10 @@ export async function completeAIText(config: AIResolvedConfig, options: AIComple
     headers.Authorization = `Bearer ${config.apiKey}`
   }
 
-  if (config.provider === 'openrouter') {
-    if (config.openrouterSiteUrl) headers['HTTP-Referer'] = config.openrouterSiteUrl
-    if (config.openrouterAppName) headers['X-Title'] = config.openrouterAppName
-  }
-
   if (config.spec.type === 'anthropic') {
     if (config.apiKey) delete headers.Authorization
     headers['x-api-key'] = config.apiKey || ''
-    headers['anthropic-version'] = config.anthropicVersion || '2023-06-01'
+    headers['anthropic-version'] = '2023-06-01'
   }
 
   if (config.spec.type === 'gemini') {

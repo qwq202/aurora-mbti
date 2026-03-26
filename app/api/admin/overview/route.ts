@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { AI_PROVIDER_SPECS } from '@/lib/ai-provider-defs'
 import { isAuthAuthorized, isAuthConfigured } from '@/lib/auth'
 import { resolveAIConfig } from '@/lib/ai-provider'
-import { readStoredAIConfig } from '@/lib/ai-settings-store'
+import { readStoredAIConfigV2 } from '@/lib/ai-settings-store'
 import { apiError, apiOk } from '@/lib/api-response'
 
 function maskValue(value?: string) {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   }
 
   const aiConfig = resolveAIConfig()
-  const storedConfig = readStoredAIConfig()
+  const storedConfig = readStoredAIConfigV2()
 
   return apiOk({
     overview: {
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         model: aiConfig.model,
         apiKeySet: Boolean(aiConfig.apiKey),
         apiKeyMasked: maskValue(aiConfig.apiKey),
-        source: storedConfig ? 'panel' : 'env',
+        source: storedConfig ? 'panel' : 'default',
       },
       security: {},
       providers: AI_PROVIDER_SPECS.map((item) => ({

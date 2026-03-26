@@ -3,9 +3,14 @@ import { validateQuestionsAPI } from '@/lib/api-validation'
 import { type StructuredQuestion, type StructuredQuestionsPayload } from '@/lib/ai-types'
 import { assertAIConfig, completeAIText, resolveAIConfig } from '@/lib/ai-provider'
 import { apiError, apiOk } from '@/lib/api-response'
+import { checkAnonymousTestAccess } from '@/lib/anonymous-access'
 
 // API - 100%0
 export async function POST(request: NextRequest) {
+  // 检查匿名测试访问权限
+  const accessDenied = checkAnonymousTestAccess(request)
+  if (accessDenied) return accessDenied
+
   try {
     const validationResult = await validateQuestionsAPI(request)
     if ('status' in validationResult) {

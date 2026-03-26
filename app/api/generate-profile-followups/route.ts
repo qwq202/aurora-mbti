@@ -3,6 +3,7 @@ import { validateProfile, SECURITY_ERRORS } from '@/lib/security'
 import { type UserProfile } from '@/lib/mbti'
 import { assertAIConfig, completeAIText, resolveAIConfig, type AIResolvedConfig, type AIResponseFormat } from '@/lib/ai-provider'
 import { apiError, apiOk } from '@/lib/api-response'
+import { checkAnonymousTestAccess } from '@/lib/anonymous-access'
 
 type FollowupQuestion = {
   id: string
@@ -13,6 +14,10 @@ type FollowupQuestion = {
 }
 
 export async function POST(request: NextRequest) {
+  // 检查匿名测试访问权限
+  const accessDenied = checkAnonymousTestAccess(request)
+  if (accessDenied) return accessDenied
+
   try {
     let payload: { profile?: UserProfile } | null = null
     try {

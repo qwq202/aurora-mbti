@@ -34,3 +34,6 @@ next-env.d.ts
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# data
+/data/

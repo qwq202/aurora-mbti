@@ -178,8 +178,8 @@ importers:
         specifier: ^19
         version: 19.1.7(@types/react@19.1.9)
       baseline-browser-mapping:
-        specifier: ^2.10.10
-        version: 2.10.10
+        specifier: ^2.10.11
+        version: 2.10.11
       postcss:
         specifier: ^8.5
         version: 8.5.6
@@ -2389,8 +2389,8 @@ packages:
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
 
-  baseline-browser-mapping@2.10.10:
-    resolution: {integrity: sha512-sUoJ3IMxx4AyRqO4MLeHlnGDkyXRoUG0/AI9fjK+vS72ekpV0yWVY7O0BVjmBcRtkNcsAO2QDZ4tdKKGoI6YaQ==}
+  baseline-browser-mapping@2.10.11:
+    resolution: {integrity: sha512-DAKrHphkJyiGuau/cFieRYhcTFeK/lBuD++C7cZ6KZHbMhBrisoi+EvhQ5RZrIfV5qwsW8kgQ07JIC+MDJRAhg==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -6671,7 +6671,7 @@ snapshots:
 
   bail@2.0.2: {}
 
-  baseline-browser-mapping@2.10.10: {}
+  baseline-browser-mapping@2.10.11: {}
 
   braces@3.0.3:
     dependencies:

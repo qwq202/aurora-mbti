@@ -1,0 +1,8 @@
+export { OverviewTab } from "./overview-tab"
+export { StatsTab } from "./stats-tab"
+export { ProvidersTab } from "./providers-tab"
+export { QuestionsTab } from "./questions-tab"
+export { RecordsTab } from "./records-tab"
+export { AnalyticsTab } from "./analytics-tab"
+export { SystemTab } from "./system-tab"
+export { TestModesTab } from "./test-modes-tab"

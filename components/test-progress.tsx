@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { ArrowLeft, ArrowRight, Save, RotateCcw, Clock, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Answers } from "@/lib/mbti"
+import { isStoredModeAI, readStoredTestModeMeta } from '@/lib/test-mode'
 
 interface TestProgressBarProps {
   current: number
@@ -30,6 +31,8 @@ export function TestProgressBar({
   estimatedTimeLeft
 }: TestProgressBarProps) {
   const [showSaved, setShowSaved] = useState(false)
+  // rerender-derived-state-no-effect: derive during render, not via state + effect
+  const testModeMeta = readStoredTestModeMeta()
   const progress = Math.round((current / total) * 100)
   const completionRate = Math.round((answeredCount / total) * 100)
   
@@ -55,7 +58,7 @@ export function TestProgressBar({
               {current + 1} / {total}
             </div>
             <div className="text-xs text-muted-foreground">
-              ({testMode.startsWith('ai') ? 'AI' : ''})
+               ({isStoredModeAI(testMode, testModeMeta) ? 'AI' : ''})
             </div>
           </div>
           

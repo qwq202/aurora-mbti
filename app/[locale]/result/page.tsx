@@ -17,6 +17,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import dynamic from "next/dynamic"
 import { type RadarScores } from "@/components/charts/RadarChart"
 import { toFriendlyErrorMessage } from "@/lib/friendly-error"
+import { isStoredModeAI, readStoredTestModeMeta } from "@/lib/test-mode"
 
 const RadarChart = dynamic(() => import("@/components/charts/RadarChart").then(mod => ({ default: mod.RadarChart })), {
   loading: () => <div className="flex items-center justify-center h-[320px] text-zinc-400 font-bold uppercase tracking-widest text-[10px]">...</div>,
@@ -33,6 +34,7 @@ export default function ResultPage() {
   const [streamingAnalysis, setStreamingAnalysis] = useState<string>('')
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false)
   const [compareEntry, setCompareEntry] = useState<HistoryEntry | null>(null)
+  const [testModeMeta, setTestModeMeta] = useState(() => readStoredTestModeMeta())
   const locale = useLocale()
   const t = useTranslations('result')
   const tCommon = useTranslations('common')
@@ -63,6 +65,7 @@ export default function ResultPage() {
 
       const savedMode = localStorage.getItem(TEST_MODE_KEY)
       if (savedMode) setTestMode(savedMode)
+      setTestModeMeta(readStoredTestModeMeta())
 
       const savedCompare = localStorage.getItem(COMPARE_KEY)
       if (savedCompare) setCompareEntry(JSON.parse(savedCompare) as HistoryEntry)
@@ -85,6 +88,7 @@ export default function ResultPage() {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         createdAt: Date.now(),
         testMode,
+        testModeIsAI: isStoredModeAI(testMode, testModeMeta),
         result,
         profile: profile ?? null,
       }
@@ -167,7 +171,7 @@ export default function ResultPage() {
         client.generateAnalysis({
           profile,
           answers: JSON.parse(localStorage.getItem(ANSWERS_KEY) || "{}") as Answers,
-          questions: testMode.startsWith("ai")
+          questions: isStoredModeAI(testMode, testModeMeta)
             ? (JSON.parse(localStorage.getItem(AI_QUESTIONS_KEY) || "[]") as Question[])
             : [],
           mbtiResult: result,

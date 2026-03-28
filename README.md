@@ -60,6 +60,7 @@ pnpm build
 - `DEBUG_API_LOGS`：调试日志开关（仅开发环境建议开启，默认关闭）
 - `ADMIN_USERNAME`：后台登录用户名（必填）
 - `ADMIN_PASSWORD`：后台登录密码（必填）
+- `ENCRYPTION_SECRET`：API Key 加密密钥（生产环境必填，至少 32 字符。生成方式：`openssl rand -base64 32`）
 
 ### 提供方与默认值
 

@@ -131,6 +131,7 @@ export interface HistoryEntry {
   id: string
   createdAt: number
   testMode?: string
+  testModeIsAI?: boolean
   result: MbtiResult
   profile?: UserProfile | null
 }

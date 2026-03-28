@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
 
   return apiOk({
     activeProvider: stored?.activeProvider || 'openai',
+    failoverProviders: stored?.failoverProviders || [],
     activeConfig: {
       baseUrl: resolved.baseUrl,
       model: resolved.model,
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     return apiError('UNAUTHORIZED', 'Unauthorized', 401)
   }
 
-  let payload: { action?: string; provider?: string; config?: unknown } | null = null
+  let payload: { action?: string; provider?: string; config?: unknown; failoverProviders?: string[] } | null = null
   try {
     payload = await request.json()
   } catch {
@@ -81,15 +82,29 @@ export async function POST(request: NextRequest) {
 
   const action = payload?.action
 
+  // 设置 Failover 渠道列表
+  if (action === 'setFailover' && Array.isArray(payload?.failoverProviders)) {
+    const failoverIds = payload.failoverProviders.filter((id) => AI_PROVIDER_MAP[id as AIProviderId]) as AIProviderId[]
+    const current = readStoredAIConfigV2()
+    writeStoredAIConfigV2({
+      activeProvider: current?.activeProvider || 'openai',
+      failoverProviders: failoverIds,
+      providers: current?.providers || {},
+    })
+    return apiOk({ failoverProviders: failoverIds })
+  }
+
   // 设置当前渠道
   if (action === 'activate' && payload?.provider) {
     const providerId = payload.provider as AIProviderId
     if (!AI_PROVIDER_MAP[providerId]) {
       return apiError('BAD_REQUEST', 'Invalid provider.', 400)
     }
+    const current = readStoredAIConfigV2()
     writeStoredAIConfigV2({
       activeProvider: providerId,
-      providers: readStoredAIConfigV2()?.providers || {},
+      failoverProviders: current?.failoverProviders,
+      providers: current?.providers || {},
     })
     return apiOk({ activated: providerId })
   }
@@ -126,6 +141,7 @@ export async function POST(request: NextRequest) {
     providers[providerId] = mergedConfig
     writeStoredAIConfigV2({
       activeProvider: current?.activeProvider || providerId,
+      failoverProviders: current?.failoverProviders,
       providers,
     })
 

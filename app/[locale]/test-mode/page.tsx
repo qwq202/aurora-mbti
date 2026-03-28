@@ -9,15 +9,40 @@ import { FadeIn, SlideUp, SlideLeft, SlideRight } from "@/components/scroll-reve
 import { type UserProfile, type Question } from "@/lib/mbti"
 import { AI_QUESTIONS_KEY, ANSWERS_KEY, PROFILE_KEY, RESULT_KEY, TEST_MODE_KEY, QUESTION_IDS_KEY, STANDARD_QUESTION_COUNT } from "@/lib/constants"
 import { RobustAIClient } from "@/lib/robust-ai-client"
-import { ArrowLeft, ArrowRight, Sparkles, Zap, Brain, Loader, Clock } from "lucide-react"
+import { ArrowLeft, ArrowRight, Sparkles, Zap, Brain, Loader, Clock, BookOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Progress } from "@/components/ui/progress"
 import { toFriendlyErrorMessage } from "@/lib/friendly-error"
+import { getStoredModeQuestionCount, isStoredModeAI, readStoredTestModeMeta, writeStoredTestModeMeta } from "@/lib/test-mode"
 
+type TestModeConfig = {
+  id: string
+  enabled: boolean
+  title: { zh: string; en: string; ja: string }
+  description: { zh: string; en: string; ja: string }
+  questionCount: number
+  estimatedTime: { zh: string; en: string; ja: string }
+  icon: 'zap' | 'brain' | 'sparkles' | 'book' | 'clock'
+  isAI: boolean
+}
 
-type TestMode = "standard" | "ai30" | "ai60" | "ai120"
+type TestModeSettings = {
+  modes: TestModeConfig[]
+  defaultMode: string
+  allowCustomCount: boolean
+  customCountMin: number
+  customCountMax: number
+}
+
+const ICON_MAP = {
+  zap: Zap,
+  brain: Brain,
+  sparkles: Sparkles,
+  book: BookOpen,
+  clock: Clock,
+} as const
 
 export default function TestModePage() {
   const router = useRouter()
@@ -25,14 +50,15 @@ export default function TestModePage() {
   const t = useTranslations('testMode')
   const tCommon = useTranslations('common')
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [selectedMode, setSelectedMode] = useState<TestMode>("ai60")
+  const [modeSettings, setModeSettings] = useState<TestModeSettings | null>(null)
+  const [selectedMode, setSelectedMode] = useState<string>("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 })
   const [referrer, setReferrer] = useState<string>("/")
   const { toast } = useToast()
   const abortRef = useRef<AbortController | null>(null)
 
-  const [resumeInfo, setResumeInfo] = useState<{ available: boolean; mode: TestMode | string; answered: number; total: number }>({ available: false, mode: "standard", answered: 0, total: 0 })
+  const [resumeInfo, setResumeInfo] = useState<{ available: boolean; mode: string; answered: number; total: number }>({ available: false, mode: "standard", answered: 0, total: 0 })
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   const generationPercent = useMemo(() => {
@@ -45,6 +71,29 @@ export default function TestModePage() {
     const urlParams = new URLSearchParams(window.location.search)
     const from = urlParams.get('from')
     setReferrer(from === 'profile' ? '/profile' : '/')
+  }, [])
+
+  // 加载测试模式配置
+  useEffect(() => {
+    const loadModeSettings = async () => {
+      try {
+        const res = await fetch('/api/test-modes')
+        const data = await res.json()
+        if (res.ok && data.modes) {
+          setModeSettings(data)
+          // 设置默认选中
+          const enabled = data.modes.filter((m: TestModeConfig) => m.enabled)
+          if (data.defaultMode && enabled.some((m: TestModeConfig) => m.id === data.defaultMode)) {
+            setSelectedMode(data.defaultMode)
+          } else if (enabled.length > 0) {
+            setSelectedMode(enabled[0].id)
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load test modes:', error)
+      }
+    }
+    void loadModeSettings()
   }, [])
 
   useEffect(() => {
@@ -71,6 +120,7 @@ export default function TestModePage() {
     try {
       const savedAnswersRaw = localStorage.getItem(ANSWERS_KEY)
       const lastMode = localStorage.getItem(TEST_MODE_KEY) || "standard"
+      const modeMeta = readStoredTestModeMeta()
       let answered = 0
       let total = 0
       
@@ -80,7 +130,7 @@ export default function TestModePage() {
         answered = parsedIds.length
         
         if (answered > 0) {
-          if (lastMode.startsWith("ai")) {
+          if (isStoredModeAI(lastMode, modeMeta)) {
             const aiRaw = localStorage.getItem(AI_QUESTIONS_KEY)
             if (aiRaw) {
               const parsedQuestions = JSON.parse(aiRaw) as unknown
@@ -105,7 +155,7 @@ export default function TestModePage() {
               total = storedIds.length
             } else {
               answered = parsedIds.filter((id) => id.startsWith("q")).length
-              total = STANDARD_QUESTION_COUNT
+              total = getStoredModeQuestionCount(lastMode, modeMeta) || STANDARD_QUESTION_COUNT
             }
           }
         }
@@ -125,7 +175,7 @@ export default function TestModePage() {
 
   const continueLast = () => {
     try {
-      if (resumeInfo.mode) localStorage.setItem(TEST_MODE_KEY, String(resumeInfo.mode))
+        if (resumeInfo.mode) localStorage.setItem(TEST_MODE_KEY, String(resumeInfo.mode))
     } catch (error) {
       console.warn(":", error)
     }
@@ -150,11 +200,15 @@ export default function TestModePage() {
   }
 
   const startTest = async () => {
-    if (!profile || isGenerating) return
+    if (!profile || isGenerating || !selectedMode) return
     
-    if (selectedMode === "standard") {
+    const selectedModeConfig = enabledModes.find(m => m.id === selectedMode)
+    if (!selectedModeConfig) return
+    
+    if (!selectedModeConfig.isAI) {
       try {
-        localStorage.setItem(TEST_MODE_KEY, "standard")
+        localStorage.setItem(TEST_MODE_KEY, selectedMode)
+        writeStoredTestModeMeta({ id: selectedMode, isAI: false, questionCount: selectedModeConfig.questionCount })
         localStorage.removeItem(AI_QUESTIONS_KEY)
       } catch (error) {
         console.warn(":", error)
@@ -163,8 +217,7 @@ export default function TestModePage() {
       return
     }
 
-    const questionCount = selectedMode === "ai30" ? 30 : selectedMode === "ai60" ? 60 : 120
-    await beginAIGeneration(questionCount, profile, {})
+    await beginAIGeneration(selectedModeConfig.questionCount, profile, {})
   }
 
   const beginAIGeneration = async (
@@ -205,6 +258,7 @@ export default function TestModePage() {
             try {
               localStorage.setItem(AI_QUESTIONS_KEY, JSON.stringify(finalQuestions))
               localStorage.setItem(TEST_MODE_KEY, selectedMode)
+              writeStoredTestModeMeta({ id: selectedMode, isAI: true, questionCount })
             } catch (error) {
               console.warn("AI:", error)
             }
@@ -233,11 +287,21 @@ export default function TestModePage() {
 
   if (!profile) return null
 
-  const modeOptions = [
-    { id: "ai30", title: t('modes.ai30.title'), icon: <Zap className="w-6 h-6" />, count: t('modes.ai30.count'), time: t('modes.ai30.time'), desc: t('modes.ai30.description'), color: "text-zinc-400" },
-    { id: "ai60", title: t('modes.ai60.title'), icon: <Brain className="w-6 h-6" />, count: t('modes.ai60.count'), time: t('modes.ai60.time'), desc: t('modes.ai60.description'), color: "text-zinc-900" },
-    { id: "ai120", title: t('modes.ai120.title'), icon: <Sparkles className="w-6 h-6" />, count: t('modes.ai120.count'), time: t('modes.ai120.time'), desc: t('modes.ai120.description'), color: "text-zinc-400" },
-  ] as const
+  // 从配置生成模式选项
+  const enabledModes = modeSettings?.modes.filter(m => m.enabled) || []
+  const modeOptions = enabledModes.map(mode => {
+    const IconComponent = ICON_MAP[mode.icon] ||Brain
+    return {
+      id: mode.id,
+      title: mode.title[locale as 'zh' | 'en' | 'ja'] || mode.title.zh,
+      icon: <IconComponent className="w-6 h-6" />,
+      count: `${mode.questionCount} ${locale === 'zh' ? '题' : locale === 'ja' ? '問' : 'questions'}`,
+      time: mode.estimatedTime[locale as 'zh' | 'en' | 'ja'] || mode.estimatedTime.zh,
+      desc: mode.description[locale as 'zh' | 'en' | 'ja'] || mode.description.zh,
+      isAI: mode.isAI,
+      questionCount: mode.questionCount,
+    }
+  })
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 selection:bg-zinc-900 selection:text-white font-sans antialiased">
@@ -292,7 +356,7 @@ export default function TestModePage() {
                         {t('resume.description', {
                           answered: resumeInfo.answered,
                           total: resumeInfo.total,
-                          mode: resumeInfo.mode.startsWith('ai') ? t('resume.modeAI') : t('resume.modeStandard'),
+                          mode: isStoredModeAI(String(resumeInfo.mode), readStoredTestModeMeta()) ? t('resume.modeAI') : t('resume.modeStandard'),
                         })}
                       </div>
                     </div>
@@ -356,7 +420,7 @@ export default function TestModePage() {
                 {modeOptions.map((mode) => (
                   <FadeIn key={mode.id}>
                     <div 
-                      onClick={() => setSelectedMode(mode.id as TestMode)}
+                      onClick={() => setSelectedMode(mode.id)}
                       className={cn(
                         "group p-10 bg-white border rounded-md cursor-pointer transition-all duration-500 flex flex-col justify-between h-full",
                         selectedMode === mode.id ? "border-zinc-900 ring-1 ring-zinc-900" : "border-zinc-100 hover:border-zinc-300"

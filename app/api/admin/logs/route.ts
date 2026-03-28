@@ -17,12 +17,16 @@ export async function GET(request: NextRequest) {
   const endpoint = searchParams.get('endpoint')
   const limit = parseInt(searchParams.get('limit') || '50', 10)
   const offset = parseInt(searchParams.get('offset') || '0', 10)
+  const from = searchParams.get('from') || undefined
+  const to = searchParams.get('to') || undefined
 
   const logs = getLogs({
     level: level || undefined,
     endpoint: endpoint || undefined,
     limit: Math.min(limit, 200),
     offset,
+    from,
+    to,
   })
 
   const stats = getLogStats()

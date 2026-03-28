@@ -16,6 +16,7 @@ type SingleProviderConfig = {
 type StoredAIConfigV2 = {
   version: 2
   activeProvider: AIProviderId
+  failoverProviders?: AIProviderId[]
   providers: Record<string, SingleProviderConfig>
 }
 
@@ -41,15 +42,27 @@ declare global {
   var __auroraAISettingsSecret: string | undefined
 }
 
-function getRuntimeSecret() {
+function getEncryptionSecret(): string {
   if (globalThis.__auroraAISettingsSecret) return globalThis.__auroraAISettingsSecret
-  const random = crypto.randomBytes(32)
-  globalThis.__auroraAISettingsSecret = random.toString('base64url')
-  return globalThis.__auroraAISettingsSecret
-}
-
-function getEncryptionSecret() {
-  return getRuntimeSecret()
+  
+  // 生产环境：使用环境变量中的固定密钥（优先）
+  const envSecret = process.env.ENCRYPTION_SECRET
+  if (envSecret && envSecret.length >= 32) {
+    globalThis.__auroraAISettingsSecret = envSecret
+    return envSecret
+  }
+  
+  // 开发环境：fallback 到运行时生成的密钥（仅用于快速测试）
+  // 警告：重启后无法解密之前存储的 API Key
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('[ai-settings-store] WARNING: ENCRYPTION_SECRET not set. API keys will be lost on restart in production.')
+    const random = crypto.randomBytes(32)
+    globalThis.__auroraAISettingsSecret = random.toString('base64url')
+    return globalThis.__auroraAISettingsSecret
+  }
+  
+  // 生产环境必须配置 ENCRYPTION_SECRET
+  throw new Error('ENCRYPTION_SECRET environment variable must be set in production (min 32 characters)')
 }
 
 function encryptApiKey(apiKey: string, secret: string) {
@@ -86,6 +99,7 @@ export type ProviderConfig = {
 
 export type AIConfigV2 = {
   activeProvider: AIProviderId
+  failoverProviders?: AIProviderId[]
   providers: Record<string, ProviderConfig>
 }
 
@@ -115,6 +129,7 @@ export function readStoredAIConfigV2(): AIConfigV2 | undefined {
       }
       return {
         activeProvider: parsed.activeProvider,
+        failoverProviders: parsed.failoverProviders,
         providers,
       }
     }
@@ -167,6 +182,7 @@ export function writeStoredAIConfigV2(config: AIConfigV2) {
   const data: StoredAIConfigV2 = {
     version: 2,
     activeProvider: config.activeProvider,
+    failoverProviders: config.failoverProviders,
     providers,
   }
 
@@ -177,6 +193,7 @@ export function setActiveProvider(providerId: AIProviderId) {
   const current = readStoredAIConfigV2()
   writeStoredAIConfigV2({
     activeProvider: providerId,
+    failoverProviders: current?.failoverProviders,
     providers: current?.providers || {},
   })
 }
@@ -187,8 +204,23 @@ export function setProviderConfig(providerId: AIProviderId, config: ProviderConf
   providers[providerId] = config
   writeStoredAIConfigV2({
     activeProvider: current?.activeProvider || providerId,
+    failoverProviders: current?.failoverProviders,
     providers,
   })
+}
+
+export function setFailoverProviders(providers: AIProviderId[]) {
+  const current = readStoredAIConfigV2()
+  writeStoredAIConfigV2({
+    activeProvider: current?.activeProvider || 'openai',
+    failoverProviders: providers,
+    providers: current?.providers || {},
+  })
+}
+
+export function getFailoverProviders(): AIProviderId[] {
+  const stored = readStoredAIConfigV2()
+  return stored?.failoverProviders || []
 }
 
 export function getActiveProviderConfig(): { providerId: AIProviderId; config: ProviderConfig } | undefined {

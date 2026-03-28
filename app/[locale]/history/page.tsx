@@ -18,6 +18,7 @@ export type HistoryEntry = {
   id: string
   createdAt: number
   testMode?: string
+  testModeIsAI?: boolean
   result: MbtiResult
   profile?: UserProfile | null
 }
@@ -161,7 +162,7 @@ export default function HistoryPage() {
                                 {new Date(e.createdAt).toLocaleDateString()}
                               </div>
                               <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                                {e.testMode?.startsWith('ai') ? t('entry.modeAI') : t('entry.modeStandard')}
+                                {(e.testModeIsAI ?? e.testMode?.startsWith('ai')) ? t('entry.modeAI') : t('entry.modeStandard')}
                               </div>
                             </div>
                             <div className="text-[10px] font-black px-2 py-1 bg-zinc-50 rounded-md text-zinc-400">

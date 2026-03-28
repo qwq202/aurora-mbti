@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type SVGProps } from "react"
 import { useRouter } from "@/i18n/routing"
 import { useLocale, useTranslations } from "next-intl"
 import { type Question, type Answers, type UserProfile, type AIQuestionInput, computeMbti, getPersonalizedQuestions, convertAIQuestionsToMBTI, getQuestions } from "@/lib/mbti"
-import { ANSWERS_KEY, RESULT_KEY, PROFILE_KEY, TEST_MODE_KEY, AI_QUESTIONS_KEY, QUESTION_IDS_KEY, STANDARD_QUESTION_COUNT } from "@/lib/constants"
+import { ANSWERS_KEY, RESULT_KEY, PROFILE_KEY, TEST_MODE_KEY, AI_QUESTIONS_KEY, QUESTION_IDS_KEY } from "@/lib/constants"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { FadeIn, SlideUp, SlideLeft, SlideRight } from "@/components/scroll-reveal"
@@ -15,12 +15,33 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft, ArrowRight, Check, RotateCcw, AlertTriangle, User, Target, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { getStoredModeQuestionCount, isStoredModeAI, readStoredTestModeMeta } from "@/lib/test-mode"
 
-const buildStableQuestionList = (questions: Question[], answeredIds: string[]) => {
+const buildStableQuestionList = (questions: Question[], answeredIds: string[], limit: number) => {
   const answeredSet = new Set(answeredIds)
   const answeredOrdered = questions.filter((q) => answeredSet.has(q.id))
   const remaining = questions.filter((q) => !answeredSet.has(q.id))
-  return [...answeredOrdered, ...remaining].slice(0, STANDARD_QUESTION_COUNT)
+  return [...answeredOrdered, ...remaining].slice(0, limit)
+}
+
+const buildStandardQuestions = (profile: UserProfile, localeQuestions: Question[], limit: number) => {
+  // js-early-exit: invalid limit needs no computation
+  if (limit <= 0) return []
+  if (limit > localeQuestions.length) limit = localeQuestions.length
+
+  const personalized = getPersonalizedQuestions(profile, localeQuestions)
+  if (limit <= personalized.length) {
+    return personalized.slice(0, limit)
+  }
+
+  // js-index-maps: Set for O(1) lookups instead of repeated includes()
+  const usedIds = new Set(personalized.map((question) => question.id))
+  const extras: Question[] = []
+  for (const q of localeQuestions) {
+    if (!usedIds.has(q.id)) extras.push(q)
+    if (extras.length + personalized.length >= limit) break
+  }
+  return [...personalized, ...extras].slice(0, limit)
 }
 
 
@@ -38,6 +59,7 @@ export default function TestPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [testMode, setTestMode] = useState("standard")
+  const [testModeMeta, setTestModeMeta] = useState(() => readStoredTestModeMeta())
   
   useEffect(() => {
     try {
@@ -60,6 +82,7 @@ export default function TestPage() {
       if (savedTestMode) {
         setTestMode(savedTestMode)
       }
+      setTestModeMeta(readStoredTestModeMeta())
     } catch (error) {
       console.warn(":", error)
       router.push('/profile')
@@ -71,8 +94,9 @@ export default function TestPage() {
   const questions = useMemo(() => {
     if (!profile) return []
     const localeQuestions = getQuestions(locale)
+    const standardQuestionCount = getStoredModeQuestionCount(testMode, testModeMeta)
     
-    if (testMode.startsWith("ai")) {
+    if (isStoredModeAI(testMode, testModeMeta)) {
       try {
         const aiQuestions = localStorage.getItem(AI_QUESTIONS_KEY)
         if (aiQuestions) {
@@ -91,27 +115,27 @@ export default function TestPage() {
     }
 
     const questionById = new Map(localeQuestions.map((q) => [q.id, q]))
-    let storedIds: string[] | null = null
 
     try {
       const raw = localStorage.getItem(QUESTION_IDS_KEY)
       if (raw) {
         const parsed = JSON.parse(raw)
         if (Array.isArray(parsed)) {
-          storedIds = parsed.filter((id) => typeof id === "string")
+          // js-combine-iterations: single loop instead of filter+map+filter
+          const storedQuestions: Question[] = []
+          for (const id of parsed) {
+            if (typeof id === 'string') {
+              const q = questionById.get(id)
+              if (q) storedQuestions.push(q)
+            }
+          }
+          if (storedQuestions.length === parsed.length) {
+            return storedQuestions
+          }
         }
       }
     } catch (error) {
       console.warn(":", error)
-    }
-
-    if (storedIds?.length) {
-      const storedQuestions = storedIds
-        .map((id) => questionById.get(id))
-        .filter(Boolean) as Question[]
-      if (storedQuestions.length === storedIds.length) {
-        return storedQuestions
-      }
     }
 
     let recoveredIds: string[] = []
@@ -119,14 +143,18 @@ export default function TestPage() {
       const rawAnswers = localStorage.getItem(ANSWERS_KEY)
       if (rawAnswers) {
         const parsedAnswers = JSON.parse(rawAnswers) as Record<string, unknown>
-        recoveredIds = Object.keys(parsedAnswers).filter((id) => questionById.has(id))
+        // js-combine-iterations: single loop instead of Object.keys+filter
+        for (const id of Object.keys(parsedAnswers)) {
+          if (questionById.has(id)) recoveredIds.push(id)
+        }
       }
     } catch (error) {
       console.warn(":", error)
     }
 
     if (recoveredIds.length > 0) {
-      const recoveredQuestions = buildStableQuestionList(localeQuestions, recoveredIds)
+      const baseQuestions = buildStandardQuestions(profile, localeQuestions, standardQuestionCount)
+      const recoveredQuestions = buildStableQuestionList(baseQuestions, recoveredIds, standardQuestionCount)
       try {
         localStorage.setItem(QUESTION_IDS_KEY, JSON.stringify(recoveredQuestions.map((q) => q.id)))
       } catch (error) {
@@ -135,14 +163,14 @@ export default function TestPage() {
       return recoveredQuestions
     }
 
-    const generatedQuestions = getPersonalizedQuestions(profile, localeQuestions)
+    const generatedQuestions = buildStandardQuestions(profile, localeQuestions, standardQuestionCount)
     try {
       localStorage.setItem(QUESTION_IDS_KEY, JSON.stringify(generatedQuestions.map((q) => q.id)))
     } catch (error) {
       console.warn(":", error)
     }
     return generatedQuestions
-  }, [profile, testMode, locale])
+  }, [profile, testMode, locale, testModeMeta])
   
   const total = questions.length
 
@@ -304,7 +332,7 @@ export default function TestPage() {
                       {t('hero.questionInfo', {
                         current: answeredCount,
                         total,
-                        mode: testMode.startsWith("ai") ? t('hero.modeAI') : t('hero.modeStandard'),
+                         mode: isStoredModeAI(testMode, testModeMeta) ? t('hero.modeAI') : t('hero.modeStandard'),
                       })}
                     </p>
                   </SlideUp>

@@ -76,6 +76,8 @@ export function getLogs(options?: {
   endpoint?: string
   limit?: number
   offset?: number
+  from?: string
+  to?: string
 }): LogEntry[] {
   let logs = readLogs()
   
@@ -85,6 +87,16 @@ export function getLogs(options?: {
   
   if (options?.endpoint) {
     logs = logs.filter(log => log.endpoint.includes(options.endpoint!))
+  }
+
+  if (options?.from) {
+    const fromTime = new Date(options.from).getTime()
+    logs = logs.filter(log => new Date(log.timestamp).getTime() >= fromTime)
+  }
+
+  if (options?.to) {
+    const toTime = new Date(options.to).getTime() + 86400_000
+    logs = logs.filter(log => new Date(log.timestamp).getTime() <= toTime)
   }
   
   const offset = options?.offset || 0
